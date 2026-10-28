@@ -1,0 +1,42 @@
+// 全局常量：数值口径见 01-需求/00-需求总览 §四
+
+export const APP_VERSION = '0.1.0'
+
+// 本地存储：H5 用 uni storage 承载，表结构与 07-数据安全保持一致，后续可整体替换为 SQLite 适配器
+export const DB_KEY = 'buddy_db_v1'
+export const BACKUP_PREFIX = 'buddy_backup_v1_'
+
+// 初始宠物：图鉴固定种类，默认陪伴
+export const INITIAL_PET_KEY = 'xuegao'
+
+// 养成
+export const GROWTH_MAX = 50
+export const UNLOCK_BOOKS = 4
+
+// 货币
+export const TRAIN_COIN_STRENGTH = 20
+export const TRAIN_COIN_CARDIO = 15
+export const REST_COIN = 1
+export const FULLWEEK_COIN = 20
+export const PASSIVE_COIN = 1
+export const STREAK_BONUS_3 = 5
+export const STREAK_BONUS_7 = 10
+
+// 抽奖
+export const DRAW_SINGLE_COST = 3
+export const DRAW_TEN_COST = 25
+export const PITY_MAX = 30
+// 连续 29 抽未出蛋后，下一抽为保底蛋（即 30 抽内必出）
+export const PITY_GUARANTEE_AT = 29
+export const EGG_TO_FOOD = 20
+export const EGG_RATE = 0.03
+export const BOOK_RATE = 0.18
+
+// 蔫：连续 2 个训练日未打卡（休息日不算断）——初稿设计文档口径
+export const WILT_MISSED_TRAIN_DAYS = 2
+
+// 对话上下文滑窗
+export const CHAT_WINDOW = 20
+
+// 每日自动备份保留天数
+export const BACKUP_KEEP_DAYS = 7

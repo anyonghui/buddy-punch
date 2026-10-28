@@ -1,0 +1,104 @@
+{
+	"pages": [
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "首页"
+			}
+		},
+		{
+			"path": "pages/pets/pets",
+			"style": {
+				"navigationBarTitleText": "宠物"
+			}
+		},
+		{
+			"path": "pages/chat/chat",
+			"style": {
+				"navigationBarTitleText": "聊天"
+			}
+		},
+		{
+			"path": "pages/calendar/calendar",
+			"style": {
+				"navigationBarTitleText": "日历"
+			}
+		},
+		{
+			"path": "pages/mine/mine",
+			"style": {
+				"navigationBarTitleText": "我的"
+			}
+		},
+		{
+			"path": "pages/draw/draw",
+			"style": {
+				"navigationBarTitleText": "抽奖"
+			}
+		},
+		{
+			"path": "pages/pet-detail/pet-detail",
+			"style": {
+				"navigationBarTitleText": "宠物详情"
+			}
+		},
+		{
+			"path": "pages/chat-room/chat-room",
+			"style": {
+				"navigationBarTitleText": "聊天"
+			}
+		},
+		{
+			"path": "pages/wallet/wallet",
+			"style": {
+				"navigationBarTitleText": "货币流水"
+			}
+		}
+	],
+	"tabBar": {
+		"color": "#8A8175",
+		"selectedColor": "#6E8B74",
+		"backgroundColor": "#FBF7EC",
+		"borderStyle": "black",
+		"list": [
+			{
+				"pagePath": "pages/index/index",
+				"text": "首页",
+				"iconPath": "static/tabbar/home.png",
+				"selectedIconPath": "static/tabbar/home-active.png"
+			},
+			{
+				"pagePath": "pages/pets/pets",
+				"text": "宠物",
+				"iconPath": "static/tabbar/pets.png",
+				"selectedIconPath": "static/tabbar/pets-active.png"
+			},
+			{
+				"pagePath": "pages/chat/chat",
+				"text": "聊天",
+				"iconPath": "static/tabbar/chat.png",
+				"selectedIconPath": "static/tabbar/chat-active.png"
+			},
+			{
+				"pagePath": "pages/calendar/calendar",
+				"text": "日历",
+				"iconPath": "static/tabbar/calendar.png",
+				"selectedIconPath": "static/tabbar/calendar-active.png"
+			},
+			{
+				"pagePath": "pages/mine/mine",
+				"text": "我的",
+				"iconPath": "static/tabbar/mine.png",
+				"selectedIconPath": "static/tabbar/mine-active.png"
+			}
+		]
+	},
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "buddy",
+		"navigationBarBackgroundColor": "#FBF7EC",
+		"backgroundColor": "#FBF7EC"
+	},
+	"uniIdRouter": {}
+}

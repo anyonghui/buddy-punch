@@ -1,0 +1,76 @@
+import { AnimDef } from './types.uts'
+
+// 图集契约：8 列 × 9 行，单帧 192×208；行序见 01-全局布局规范 §四
+// 说明：H5 端用 CSS 图集裁切 + 定时切帧即可，避免 canvas 上下文与高分屏适配开销
+export const ATLAS_COLS = 8
+export const CELL_W = 192
+export const CELL_H = 208
+
+export function getAnim(state: string): AnimDef {
+	// idle：开心待机，循环
+	if (state == 'idle') {
+		return new AnimDef(0, 6, 6, true)
+	}
+	// run-right / run-left：横向移动，首版未接入自主散步
+	if (state == 'run-right') {
+		return new AnimDef(1, 8, 12, true)
+	}
+	if (state == 'run-left') {
+		return new AnimDef(2, 8, 12, true)
+	}
+	// wave：打招呼，一次性
+	if (state == 'wave') {
+		return new AnimDef(3, 4, 8, false)
+	}
+	// jump：打卡庆祝，一次性
+	if (state == 'jump') {
+		return new AnimDef(4, 5, 10, false)
+	}
+	// failed：蔫，循环
+	if (state == 'failed') {
+		return new AnimDef(5, 8, 6, true)
+	}
+	// waiting：等待用户输入，循环
+	if (state == 'waiting') {
+		return new AnimDef(6, 6, 6, true)
+	}
+	// working：抽奖处理中，循环
+	if (state == 'working') {
+		return new AnimDef(7, 6, 10, true)
+	}
+	// review：完成后的检查输出，一次性
+	if (state == 'review') {
+		return new AnimDef(8, 6, 6, false)
+	}
+	return new AnimDef(0, 6, 6, true)
+}
+
+export function isLoopingState(state: string): boolean {
+	return getAnim(state).loop
+}
+
+// 首页动作预览按钮：左侧 5 个 + 右侧 4 个，覆盖图集 9 行全部状态
+export class PetActionItem {
+	state: string = ''
+	label: string = ''
+
+	constructor(state: string = '', label: string = '') {
+		this.state = state
+		this.label = label
+	}
+}
+
+export const PET_ACTIONS_LEFT: PetActionItem[] = [
+	//new PetActionItem('idle', '待机'),
+	new PetActionItem('wave', '挥手'),
+	new PetActionItem('jump', '跳跃'),
+	new PetActionItem('run-right', '右跑'),
+	new PetActionItem('run-left', '左跑')
+]
+
+export const PET_ACTIONS_RIGHT: PetActionItem[] = [
+	new PetActionItem('failed', '蔫了'),
+	new PetActionItem('waiting', '等待'),
+	new PetActionItem('working', '工作'),
+	new PetActionItem('review', '检查')
+]

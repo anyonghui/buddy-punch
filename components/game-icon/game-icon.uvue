@@ -1,0 +1,63 @@
+<template>
+	<image class="game-icon" :src="src" mode="aspectFit" :style="{ width: sizePx, height: sizePx, marginLeft: mlPx, marginRight: mrPx }"></image>
+</template>
+
+<script setup lang="uts">
+	const props = defineProps({
+		icon: {
+			type: String,
+			default: 'coin'
+		},
+		size: {
+			type: Number,
+			default: 28
+		},
+		// 行内图标与前后文字的间距（rpx）
+		ml: {
+			type: Number,
+			default: 0
+		},
+		mr: {
+			type: Number,
+			default: 0
+		}
+	})
+
+	const src = computed((): string => {
+		if (props.icon == 'train') {
+			return '/static/duanlian.png'
+		}
+		if (props.icon == 'gift') {
+			return '/static/choujiang.png'
+		}
+		if (props.icon == 'egg') {
+			return '/static/dan.png'
+		}
+		if (props.icon == 'food') {
+			return '/static/liangshi.png'
+		}
+		if (props.icon == 'book') {
+			return '/static/shuji.png'
+		}
+		return '/static/jinbi.png'
+	})
+
+	const sizePx = computed((): string => {
+		return `${props.size}rpx`
+	})
+
+	const mlPx = computed((): string => {
+		return `${props.ml}rpx`
+	})
+
+	const mrPx = computed((): string => {
+		return `${props.mr}rpx`
+	})
+</script>
+
+<style lang="scss" scoped>
+	.game-icon {
+		/* 素材本身为透明底，图标底色跟随所在纸张/卡片 */
+		background-color: transparent;
+	}
+</style>

@@ -1,0 +1,7 @@
+{
+  "id": "doro",
+  "displayName": "Doro",
+  "description": "小巧的白色Q版宠物，粉色头发、紫色眼睛，头侧别着玫瑰蝴蝶结。",
+  "spritesheetPath": "spritesheet.webp",
+  "kind": "creature"
+}

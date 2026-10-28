@@ -1,0 +1,431 @@
+<template>
+	<view class="detail-page buddy-page paper-texture">
+		<scroll-view class="page-scroll" scroll-y>
+			<view v-if="found" class="detail-content">
+				<!-- ① 头图 -->
+				<view class="header-area">
+					<view class="header-pet" @click="onPetTap">
+						<PetSprite :petKey="petKey" :state="displayState" :height="360" :playing="true" />
+					</view>
+					<text class="pet-name">{{ petName }}</text>
+					<text class="pet-state">{{ wilting ? '蔫了' : '开心' }}{{ isActive ? ' · 陪伴中' : '' }}</text>
+				</view>
+
+				<!-- ② 成长进度 -->
+				<view class="progress-card buddy-card">
+					<view class="progress-row">
+						<text class="progress-label">成长值 {{ petGrowth }}/50</text>
+						<view class="buddy-progress progress-bar">
+							<view class="buddy-progress-fill" :style="{ width: growthPercent }"></view>
+						</view>
+					</view>
+					<view class="progress-row">
+						<text class="progress-label">解锁书籍 {{ bookDisplay }}/4</text>
+						<view class="buddy-progress progress-bar">
+							<view class="buddy-progress-fill-coin" :style="{ width: bookPercent }"></view>
+						</view>
+					</view>
+				</view>
+
+				<!-- ③ 喂养 -->
+				<view v-if="!chatUnlocked && petGrowth < 50" class="feed-area">
+					<view class="buddy-btn feed-btn" :class="foodCount <= 0 ? 'buddy-btn-disabled' : ''" @click="onFeed">
+						<text :class="foodCount <= 0 ? 'buddy-btn-text-disabled' : 'buddy-btn-text'">喂粮食 +1 成长</text>
+					</view>
+					<view class="feed-remain-row">
+						<GameIcon icon="food" :size="28" :mr="6" />
+						<text class="feed-remain">余粮 {{ foodCount }}</text>
+					</view>
+				</view>
+
+				<!-- ④ 解锁对话 -->
+				<view class="unlock-area">
+					<text v-if="chatUnlocked" class="unlocked-text">已解锁对话</text>
+					<view v-else class="unlock-wrap">
+						<view class="buddy-btn unlock-btn" :class="canUnlock ? 'buddy-btn-main' : 'buddy-btn-disabled'" @click="onUnlock">
+							<text :class="canUnlock ? 'buddy-btn-text-inverse' : 'buddy-btn-text-disabled'">解锁对话（50 成长 + 4 书）</text>
+						</view>
+						<text v-if="unlockHint != ''" class="unlock-hint">{{ unlockHint }}</text>
+					</view>
+				</view>
+
+				<!-- ⑤ 状态说明 / ⑥ 陪伴切换 -->
+				<view class="status-area">
+					<text class="status-label">当前状态：{{ wilting ? '蔫' : '开心' }}</text>
+					<text class="status-desc">蔫是连续 2 个训练日未打卡；完成训练打卡立即恢复，不死亡、不降级。</text>
+					<view v-if="!isActive" class="buddy-btn buddy-btn-small set-active-btn" @click="onSetActive">
+						<text class="buddy-btn-text-small">设为陪伴</text>
+					</view>
+				</view>
+
+				<!-- ⑦ 开始聊天 -->
+				<view v-if="chatUnlocked" class="chat-entry">
+					<view class="buddy-btn buddy-btn-main chat-entry-btn" @click="goChat">
+						<text class="buddy-btn-text-inverse">💬 开始聊天</text>
+					</view>
+				</view>
+			</view>
+
+			<view v-else class="buddy-empty">
+				<text class="buddy-empty-icon">🐾</text>
+				<text class="buddy-empty-text">找不到这只宠物</text>
+			</view>
+		</scroll-view>
+
+		<!-- ⑧ 对话解锁庆祝 -->
+		<view v-if="showUnlockModal" class="buddy-mask" @click="closeUnlock">
+			<view class="buddy-modal" @click.stop>
+				<PetSprite :petKey="petKey" state="jump" :height="200" :playing="true" />
+				<text class="buddy-modal-title">对话解锁成功！</text>
+				<text class="buddy-modal-text">以后可以随时找 {{ petName }} 聊天了。</text>
+				<view class="modal-btn-row">
+					<view class="buddy-btn modal-btn" @click="closeUnlock">
+						<text class="buddy-btn-text">稍后</text>
+					</view>
+					<view class="buddy-btn buddy-btn-main modal-btn" @click="goChat">
+						<text class="buddy-btn-text-inverse">去聊天</text>
+					</view>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import PetSprite from '@/components/pet-sprite/pet-sprite.uvue'
+	import GameIcon from '@/components/game-icon/game-icon.uvue'
+	import {
+		wilting,
+		foodCount,
+		bookCount,
+		refreshStore
+	} from '@/common/store.uts'
+	import { getPetById, feedPet, unlockChat, setActivePet } from '@/common/repository.uts'
+
+	const petId = ref(-1)
+	const found = ref(false)
+	const petKey = ref('')
+	const petName = ref('')
+	const petGrowth = ref(0)
+	const chatUnlocked = ref(false)
+	const isActive = ref(false)
+	const interactState = ref('')
+	const showUnlockModal = ref(false)
+
+	let interactTimer = -1
+	let lastTapAt = 0
+
+	const displayState = computed((): string => {
+		if (wilting.value) {
+			return 'failed'
+		}
+		if (interactState.value != '') {
+			return interactState.value
+		}
+		return 'idle'
+	})
+
+	const growthPercent = computed((): string => {
+		const p = Math.min(100, Math.round(petGrowth.value * 100 / 50))
+		return `${p}%`
+	})
+
+	const bookDisplay = computed((): number => {
+		return Math.min(bookCount.value, 4)
+	})
+
+	const bookPercent = computed((): string => {
+		const p = Math.min(100, Math.round(Math.min(bookCount.value, 4) * 100 / 4))
+		return `${p}%`
+	})
+
+	const canUnlock = computed((): boolean => {
+		return !chatUnlocked.value && petGrowth.value >= 50 && bookCount.value >= 4
+	})
+
+	const unlockHint = computed((): string => {
+		if (chatUnlocked.value) {
+			return ''
+		}
+		if (petGrowth.value < 50) {
+			return '需成长 50 + 4 本书'
+		}
+		if (bookCount.value < 4) {
+			return `还需 ${4 - bookCount.value} 本书解锁对话`
+		}
+		return ''
+	})
+
+	function loadPet(): void {
+		const p = getPetById(petId.value)
+		if (p == null) {
+			found.value = false
+			return
+		}
+		found.value = true
+		petKey.value = p.petKey
+		petName.value = p.name
+		petGrowth.value = p.growth
+		chatUnlocked.value = p.chatUnlocked
+		isActive.value = p.isActive
+		uni.setNavigationBarTitle({ title: p.name })
+	}
+
+	function clearInteractTimer(): void {
+		if (interactTimer != -1) {
+			clearTimeout(interactTimer)
+			interactTimer = -1
+		}
+	}
+
+	function playInteraction(state: string): void {
+		interactState.value = state
+		clearInteractTimer()
+		interactTimer = setTimeout(() => {
+			interactState.value = ''
+			interactTimer = -1
+		}, 1100)
+	}
+
+	function onPetTap(): void {
+		if (wilting.value) {
+			return
+		}
+		const now = Date.now()
+		if (now - lastTapAt < 1000) {
+			return
+		}
+		lastTapAt = now
+		playInteraction(Math.random() < 0.5 ? 'wave' : 'jump')
+	}
+
+	function onFeed(): void {
+		if (chatUnlocked.value || petGrowth.value >= 50) {
+			return
+		}
+		if (foodCount.value <= 0) {
+			uni.showToast({ title: '没有粮食了，打卡赚币抽奖吧', icon: 'none' })
+			return
+		}
+		const out = feedPet(petId.value)
+		if (!out.ok) {
+			uni.showToast({ title: out.reason, icon: 'none' })
+			return
+		}
+		refreshStore()
+		loadPet()
+		playInteraction('jump')
+	}
+
+	function onUnlock(): void {
+		if (chatUnlocked.value) {
+			return
+		}
+		if (petGrowth.value < 50) {
+			uni.showToast({ title: '需成长 50 + 4 本书', icon: 'none' })
+			return
+		}
+		if (bookCount.value < 4) {
+			uni.showToast({ title: `还需 ${4 - bookCount.value} 本书解锁对话`, icon: 'none' })
+			return
+		}
+		const out = unlockChat(petId.value)
+		if (!out.ok) {
+			uni.showToast({ title: out.reason, icon: 'none' })
+			return
+		}
+		refreshStore()
+		loadPet()
+		showUnlockModal.value = true
+	}
+
+	function onSetActive(): void {
+		if (!setActivePet(petId.value)) {
+			uni.showToast({ title: '切换失败', icon: 'none' })
+			return
+		}
+		refreshStore()
+		loadPet()
+		uni.showToast({ title: `现在由 ${petName.value} 陪伴你`, icon: 'none' })
+	}
+
+	function closeUnlock(): void {
+		showUnlockModal.value = false
+	}
+
+	function goChat(): void {
+		showUnlockModal.value = false
+		uni.navigateTo({ url: `/pages/chat-room/chat-room?petId=${petId.value}` })
+	}
+
+	onLoad((options: OnLoadOptions) => {
+		const raw = options['petId']
+		if (raw != null && raw != '') {
+			petId.value = parseInt(raw)
+		}
+	})
+
+	onShow(() => {
+		refreshStore()
+		loadPet()
+	})
+
+	onHide(() => {
+		clearInteractTimer()
+		interactState.value = ''
+	})
+
+	onUnload(() => {
+		clearInteractTimer()
+	})
+</script>
+
+<style lang="scss" scoped>
+	.detail-page {
+		flex: 1;
+		padding: 24rpx 28rpx 50rpx 28rpx;
+	}
+
+	.detail-content {
+		flex-direction: column;
+	}
+
+	.header-area {
+		align-items: center;
+		padding-top: 10rpx;
+	}
+
+	.header-pet {
+		align-items: center;
+		justify-content: flex-end;
+	}
+
+	.pet-name {
+		font-size: 40rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+		margin-top: 14rpx;
+	}
+
+	.pet-state {
+		font-size: 24rpx;
+		color: var(--color-muted);
+		margin-top: 8rpx;
+	}
+
+	.progress-card {
+		margin-top: 26rpx;
+		padding: 24rpx;
+	}
+
+	.progress-row {
+		margin-bottom: 20rpx;
+	}
+
+	.progress-label {
+		font-size: 26rpx;
+		color: var(--color-ink);
+		margin-bottom: 12rpx;
+	}
+
+	.progress-bar {
+		width: 100%;
+	}
+
+	.feed-area {
+		flex-direction: row;
+		align-items: center;
+		margin-top: 12rpx;
+	}
+
+	.feed-btn {
+		flex: 1;
+	}
+
+	.feed-remain-row {
+		flex-direction: row;
+		align-items: center;
+		margin-left: 20rpx;
+	}
+
+	.feed-remain {
+		font-size: 24rpx;
+		color: var(--color-muted);
+	}
+
+	.unlock-area {
+		margin-top: 24rpx;
+		align-items: center;
+	}
+
+	.unlock-wrap {
+		width: 100%;
+		align-items: center;
+	}
+
+	.unlock-btn {
+		width: 100%;
+	}
+
+	.unlock-hint {
+		font-size: 22rpx;
+		color: var(--color-muted);
+		margin-top: 12rpx;
+	}
+
+	.unlocked-text {
+		width: 100%;
+		text-align: center;
+		font-size: 30rpx;
+		font-weight: bold;
+		color: var(--color-success);
+		padding: 20rpx;
+		border: 3rpx dashed var(--color-success);
+		border-radius: 8rpx;
+		background-color: var(--color-success-soft);
+	}
+
+	.status-area {
+		margin-top: 28rpx;
+		padding: 20rpx;
+		border-top: 2rpx dashed var(--color-line-soft);
+	}
+
+	.status-label {
+		font-size: 26rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+	}
+
+	.status-desc {
+		font-size: 22rpx;
+		line-height: 1.6;
+		color: var(--color-muted);
+		margin-top: 10rpx;
+	}
+
+	.set-active-btn {
+		align-self: flex-start;
+		margin-top: 16rpx;
+	}
+
+	.chat-entry {
+		margin-top: 24rpx;
+	}
+
+	.chat-entry-btn {
+		width: 100%;
+	}
+
+	.modal-btn-row {
+		width: 100%;
+		flex-direction: row;
+		margin-top: 28rpx;
+	}
+
+	.modal-btn {
+		flex: 1;
+		margin-left: 8rpx;
+		margin-right: 8rpx;
+	}
+</style>

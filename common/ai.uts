@@ -1,0 +1,118 @@
+// OpenAI 兼容的对话请求：整段返回，不做流式
+import { ChatTurn } from './types.uts'
+
+class AiMessage {
+	role: string = ''
+	content: string = ''
+
+	constructor(role: string = '', content: string = '') {
+		this.role = role
+		this.content = content
+	}
+}
+
+class ChatRequestBody {
+	model: string = ''
+	messages: AiMessage[] = []
+	temperature: number = 0.8
+	max_tokens: number = 300
+	stream: boolean = false
+
+	constructor(model: string = '', messages: AiMessage[] = []) {
+		this.model = model
+		this.messages = messages
+	}
+}
+
+function normalizeUrl(base: string): string {
+	let url = base.trim()
+	if (url == '') {
+		url = 'https://api.deepseek.com/v1'
+	}
+	if (url.endsWith('/')) {
+		url = url.substring(0, url.length - 1)
+	}
+	if (!url.endsWith('/chat/completions')) {
+		url = url + '/chat/completions'
+	}
+	return url
+}
+
+function statusMessage(code: number): string {
+	if (code == 401) {
+		return 'API Key 无效，去我的-设置检查'
+	}
+	if (code == 404) {
+		return 'API 地址不正确，去我的-设置检查'
+	}
+	if (code == 429) {
+		return '请求太频繁，稍后再试'
+	}
+	return `请求失败（${code}）`
+}
+
+export function requestChat(
+	apiKey: string,
+	apiBase: string,
+	apiModel: string,
+	systemPrompt: string,
+	history: ChatTurn[],
+	userText: string,
+	onDone: (ok: boolean, text: string) => void
+): void {
+	const key = apiKey.trim()
+	if (key == '') {
+		onDone(false, '请先配置 API Key')
+		return
+	}
+	const messages: AiMessage[] = []
+	messages.push(new AiMessage('system', systemPrompt))
+	for (let i = 0; i < history.length; i++) {
+		const turn = history[i]
+		messages.push(new AiMessage(turn.role == 'pet' ? 'assistant' : 'user', turn.content))
+	}
+	messages.push(new AiMessage('user', userText))
+	const model = apiModel.trim() == '' ? 'deepseek-chat' : apiModel.trim()
+	const body = new ChatRequestBody(model, messages)
+
+	uni.request({
+		url: normalizeUrl(apiBase),
+		method: 'POST',
+		timeout: 60000,
+		header: {
+			'Content-Type': 'application/json',
+			'Authorization': 'Bearer ' + key
+		},
+		data: JSON.stringify(body),
+		success: (res) => {
+			if (res.statusCode < 200 || res.statusCode >= 300) {
+				onDone(false, statusMessage(res.statusCode))
+				return
+			}
+			const data = res.data as UTSJSONObject
+			if (data == null) {
+				onDone(false, '返回内容为空')
+				return
+			}
+			const choices = data.getArray<UTSJSONObject>('choices')
+			if (choices == null || choices.length == 0) {
+				onDone(false, '返回内容为空')
+				return
+			}
+			const message = choices[0].getJSON('message')
+			if (message == null) {
+				onDone(false, '返回内容为空')
+				return
+			}
+			const content = message.getString('content')
+			if (content == null || content.trim() == '') {
+				onDone(false, '回复内容为空')
+				return
+			}
+			onDone(true, content.trim())
+		},
+		fail: (_err) => {
+			onDone(false, '网络请求失败')
+		}
+	})
+}

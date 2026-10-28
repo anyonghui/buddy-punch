@@ -1,0 +1,75 @@
+{
+	"name": "安屿雪卡",
+	"appid": "__UNI__35C60D1",
+	"description": "",
+	"versionName": "1.0.0",
+	"versionCode": "100",
+	"uni-app-x": {
+		"styleIsolationVersion": "2",
+		"vapor": true,
+		"vapor-render-target": "bytecode"
+	},
+	/* 快应用特有相关 */
+	"quickapp": {},
+	/* 小程序特有相关 */
+	"mp-weixin": {
+		"appid": "",
+		"setting": {
+			"urlCheck": false
+		},
+		"usingComponents": true
+	},
+	"mp-alipay": {
+		"usingComponents": true
+	},
+	"mp-baidu": {
+		"usingComponents": true
+	},
+	"mp-toutiao": {
+		"usingComponents": true
+	},
+	"uniStatistics": {
+		"enable": false
+	},
+	"vueVersion": "3",
+	"app": {
+		"distribute": {
+			"icons": {
+				"android": {
+					"hdpi": "",
+					"xhdpi": "",
+					"xxhdpi": "",
+					"xxxhdpi": ""
+				}
+			}
+		}
+	},
+	"app-android": {
+		"distribute": {
+			"modules": {},
+			"icons": {
+				"hdpi": "D:/note/buddy/03-开发/Android/res/mipmap-hdpi/ic_launcher.png",
+				"xhdpi": "D:/note/buddy/03-开发/Android/res/mipmap-xhdpi/ic_launcher.png",
+				"xxhdpi": "D:/note/buddy/03-开发/Android/res/mipmap-xxhdpi/ic_launcher.png",
+				"xxxhdpi": "D:/note/buddy/03-开发/Android/res/mipmap-xxxhdpi/ic_launcher.png"
+			},
+			"splashScreens": {
+				"default": {
+					"xxxhdpi": "C:/Users/38064/Pictures/happy.png"
+				}
+			}
+		}
+	},
+	"app-ios": {
+		"distribute": {
+			"modules": {},
+			"icons": {},
+			"splashScreens": {}
+		}
+	},
+	"web": {
+		"router": {
+			"mode": ""
+		}
+	}
+}

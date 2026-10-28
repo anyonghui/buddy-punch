@@ -1,0 +1,262 @@
+// 数据模型：字段对应 01-需求/07-数据安全模块 的 7 张表
+// 图鉴（static/pets）不进数据库，只通过 petKey 关联
+
+export class Pet {
+	id: number = 0
+	petKey: string = ''
+	name: string = ''
+	growth: number = 0
+	chatUnlocked: boolean = false
+	isActive: boolean = false
+	acquiredAt: string = ''
+	createdAt: string = ''
+}
+
+export class ItemRow {
+	id: number = 0
+	itemType: string = ''
+	quantity: number = 0
+}
+
+export class CheckinRow {
+	id: number = 0
+	date: string = ''
+	type: string = ''
+	weekday: number = 0
+	coinEarned: number = 0
+	createdAt: string = ''
+}
+
+export class WalletRow {
+	id: number = 0
+	type: string = ''
+	amount: number = 0
+	balance: number = 0
+	refId: number = 0
+	createdAt: string = ''
+}
+
+export class DrawLogRow {
+	id: number = 0
+	drawType: string = ''
+	cost: number = 0
+	result: string = ''
+	pityBefore: number = 0
+	pityAfter: number = 0
+	createdAt: string = ''
+}
+
+export class ChatMessage {
+	id: number = 0
+	conversationId: string = ''
+	senderRole: string = ''
+	senderPetId: number = 0
+	content: string = ''
+	// ok / pending / failed；失败消息保留可重试，不自动重试
+	status: string = 'ok'
+	createdAt: string = ''
+}
+
+export class Settings {
+	coinBalance: number = 0
+	pityCount: number = 0
+	streakDays: number = 0
+	lastCheckinDate: string = ''
+	fullweekClaimedWeek: string = ''
+	isFirstLaunch: boolean = true
+	firstLaunchDate: string = ''
+	lastBackupDate: string = ''
+	lastPassiveDate: string = ''
+	apiKey: string = ''
+	apiBase: string = 'https://api.deepseek.com/v1'
+	apiModel: string = 'deepseek-chat'
+	vibrate: boolean = true
+}
+
+export class Database {
+	pets: Pet[] = []
+	items: ItemRow[] = []
+	checkins: CheckinRow[] = []
+	wallet: WalletRow[] = []
+	drawLogs: DrawLogRow[] = []
+	messages: ChatMessage[] = []
+	settings: Settings = new Settings()
+	nextId: number = 1
+}
+
+// 图鉴元数据（启动时由预置文件生成，不落库）
+export class PetMeta {
+	id: string = ''
+	name: string = ''
+	rows: number = 9
+
+	constructor(id: string = '', name: string = '', rows: number = 9) {
+		this.id = id
+		this.name = name
+		this.rows = rows
+	}
+}
+
+export class AnimDef {
+	row: number = 0
+	frames: number = 6
+	fps: number = 6
+	loop: boolean = true
+
+	constructor(row: number = 0, frames: number = 6, fps: number = 6, loop: boolean = true) {
+		this.row = row
+		this.frames = frames
+		this.fps = fps
+		this.loop = loop
+	}
+}
+
+// ===== 业务返回值 =====
+export class CheckinOutcome {
+	ok: boolean = false
+	coin: number = 0
+	bonus: number = 0
+	total: number = 0
+	streak: number = 0
+	reason: string = ''
+}
+
+export class MakeupSummary {
+	ok: boolean = false
+	days: number = 0
+	coins: number = 0
+	reason: string = ''
+}
+
+// 取消打卡汇总：coins 为实际扣回的活力币
+export class CancelSummary {
+	ok: boolean = false
+	days: number = 0
+	coins: number = 0
+	reason: string = ''
+}
+
+export class FeedOutcome {
+	ok: boolean = false
+	reason: string = ''
+}
+
+export class UnlockOutcome {
+	ok: boolean = false
+	reason: string = ''
+}
+
+export class DrawOutcome {
+	kind: string = ''
+	petId: number = 0
+	petKey: string = ''
+	petName: string = ''
+	converted: boolean = false
+	pity: boolean = false
+}
+
+export class DrawSummary {
+	ok: boolean = false
+	reason: string = ''
+	cost: number = 0
+	pityBefore: number = 0
+	pityAfter: number = 0
+	results: DrawOutcome[] = []
+	newPets: Pet[] = []
+}
+
+export class Totals {
+	petCount: number = 0
+	checkinDays: number = 0
+	coinsEarned: number = 0
+}
+
+// ===== 页面展示结构 =====
+export class FullweekDay {
+	label: string = ''
+	done: boolean = false
+}
+
+export class FullweekInfo {
+	days: FullweekDay[] = []
+	doneCount: number = 0
+	missing: number = 0
+	canClaim: boolean = false
+	claimed: boolean = false
+	weekStart: string = ''
+}
+
+export class MonthStats {
+	trainDays: number = 0
+	restDays: number = 0
+	coins: number = 0
+}
+
+export class CalendarCell {
+	key: string = ''
+	empty: boolean = false
+	dateStr: string = ''
+	day: number = 0
+	status: string = ''
+	isToday: boolean = false
+	isFuture: boolean = false
+	isSelected: boolean = false
+	isTraining: boolean = false
+}
+
+export class ChatRow {
+	petId: number = 0
+	petKey: string = ''
+	name: string = ''
+	lastText: string = ''
+	lastTime: string = ''
+	lastAt: string = ''
+	unlocked: boolean = false
+}
+
+export class DrawDisplayRow {
+	key: string = ''
+	text: string = ''
+	highlight: boolean = false
+	tag: string = ''
+}
+
+export class ChatTurn {
+	role: string = ''
+	content: string = ''
+
+	constructor(role: string = '', content: string = '') {
+		this.role = role
+		this.content = content
+	}
+}
+
+// ===== 导出结构：settings 中刻意不含 apiKey =====
+export class ExportSettings {
+	coinBalance: number = 0
+	pityCount: number = 0
+	streakDays: number = 0
+	lastCheckinDate: string = ''
+	fullweekClaimedWeek: string = ''
+	isFirstLaunch: boolean = true
+	firstLaunchDate: string = ''
+	lastBackupDate: string = ''
+	lastPassiveDate: string = ''
+	apiBase: string = 'https://api.deepseek.com/v1'
+	apiModel: string = 'deepseek-chat'
+	vibrate: boolean = true
+}
+
+export class ExportBundle {
+	app: string = 'buddy'
+	version: string = ''
+	exportedAt: string = ''
+	pets: Pet[] = []
+	items: ItemRow[] = []
+	checkins: CheckinRow[] = []
+	wallet: WalletRow[] = []
+	drawLogs: DrawLogRow[] = []
+	messages: ChatMessage[] = []
+	settings: ExportSettings = new ExportSettings()
+	nextId: number = 1
+}

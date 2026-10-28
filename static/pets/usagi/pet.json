@@ -1,0 +1,7 @@
+{
+  "id": "usagi",
+  "displayName": "乌萨奇",
+  "description": "圆润的奶油色兔子桌面宠物，竖着长耳朵，脸颊泛红，小爪子，配上可爱的猫形小嘴。",
+  "spritesheetPath": "spritesheet.webp",
+  "kind": "creature"
+}

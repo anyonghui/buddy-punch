@@ -1,0 +1,1197 @@
+import {
+	DB_KEY,
+	BACKUP_PREFIX,
+	BACKUP_KEEP_DAYS,
+	APP_VERSION,
+	INITIAL_PET_KEY,
+	GROWTH_MAX,
+	UNLOCK_BOOKS,
+	FULLWEEK_COIN,
+	PASSIVE_COIN,
+	STREAK_BONUS_3,
+	STREAK_BONUS_7,
+	DRAW_SINGLE_COST,
+	DRAW_TEN_COST,
+	PITY_GUARANTEE_AT,
+	EGG_TO_FOOD,
+	EGG_RATE,
+	BOOK_RATE,
+	CHAT_WINDOW
+} from './constants.uts'
+import {
+	Pet,
+	ItemRow,
+	CheckinRow,
+	WalletRow,
+	DrawLogRow,
+	ChatMessage,
+	Settings,
+	Database,
+	CheckinOutcome,
+	MakeupSummary,
+	CancelSummary,
+	FeedOutcome,
+	UnlockOutcome,
+	DrawOutcome,
+	DrawSummary,
+	Totals,
+	FullweekInfo,
+	ChatRow,
+	ExportSettings,
+	ExportBundle
+} from './types.uts'
+import {
+	todayStr,
+	nowIso,
+	addDays,
+	coinForDate,
+	isTrainingDate,
+	weekStartOf,
+	pad2
+} from './date.uts'
+import {
+	findCheckin,
+	currentStreak as calcStreak,
+	isWilting as calcWilting,
+	buildFullweekInfo as calcFullweek
+} from './game.uts'
+import {
+	findMeta,
+	availableMetas,
+	isAllCollected,
+	petNameOf
+} from './pet-catalog.uts'
+
+// 唯一数据缓存；H5 先落到 uni storage，字段结构与 SQLite 方案保持一致
+let cached: Database | null = null
+
+// ===== 解析辅助 =====
+function strOf(o: UTSJSONObject, key: string, def: string): string {
+	const v = o.getString(key)
+	if (v == null) {
+		return def
+	}
+	return v
+}
+
+function numOf(o: UTSJSONObject, key: string, def: number): number {
+	const v = o.getNumber(key)
+	if (v == null) {
+		return def
+	}
+	return v
+}
+
+function boolOf(o: UTSJSONObject, key: string, def: boolean): boolean {
+	const v = o.getBoolean(key)
+	if (v == null) {
+		return def
+	}
+	return v
+}
+
+function parsePet(o: UTSJSONObject): Pet {
+	const p = new Pet()
+	p.id = numOf(o, 'id', 0)
+	p.petKey = strOf(o, 'petKey', '')
+	p.name = strOf(o, 'name', petNameOf(p.petKey))
+	p.growth = numOf(o, 'growth', 0)
+	p.chatUnlocked = boolOf(o, 'chatUnlocked', false)
+	p.isActive = boolOf(o, 'isActive', false)
+	p.acquiredAt = strOf(o, 'acquiredAt', '')
+	p.createdAt = strOf(o, 'createdAt', '')
+	return p
+}
+
+function parseItem(o: UTSJSONObject): ItemRow {
+	const r = new ItemRow()
+	r.id = numOf(o, 'id', 0)
+	r.itemType = strOf(o, 'itemType', '')
+	r.quantity = numOf(o, 'quantity', 0)
+	return r
+}
+
+function parseCheckin(o: UTSJSONObject): CheckinRow {
+	const r = new CheckinRow()
+	r.id = numOf(o, 'id', 0)
+	r.date = strOf(o, 'date', '')
+	r.type = strOf(o, 'type', '')
+	r.weekday = numOf(o, 'weekday', 0)
+	r.coinEarned = numOf(o, 'coinEarned', 0)
+	r.createdAt = strOf(o, 'createdAt', '')
+	return r
+}
+
+function parseWallet(o: UTSJSONObject): WalletRow {
+	const r = new WalletRow()
+	r.id = numOf(o, 'id', 0)
+	r.type = strOf(o, 'type', '')
+	r.amount = numOf(o, 'amount', 0)
+	r.balance = numOf(o, 'balance', 0)
+	r.refId = numOf(o, 'refId', 0)
+	r.createdAt = strOf(o, 'createdAt', '')
+	return r
+}
+
+function parseDrawLog(o: UTSJSONObject): DrawLogRow {
+	const r = new DrawLogRow()
+	r.id = numOf(o, 'id', 0)
+	r.drawType = strOf(o, 'drawType', '')
+	r.cost = numOf(o, 'cost', 0)
+	r.result = strOf(o, 'result', '')
+	r.pityBefore = numOf(o, 'pityBefore', 0)
+	r.pityAfter = numOf(o, 'pityAfter', 0)
+	r.createdAt = strOf(o, 'createdAt', '')
+	return r
+}
+
+function parseMessage(o: UTSJSONObject): ChatMessage {
+	const r = new ChatMessage()
+	r.id = numOf(o, 'id', 0)
+	r.conversationId = strOf(o, 'conversationId', '')
+	r.senderRole = strOf(o, 'senderRole', 'user')
+	r.senderPetId = numOf(o, 'senderPetId', -1)
+	r.content = strOf(o, 'content', '')
+	r.status = strOf(o, 'status', 'ok')
+	r.createdAt = strOf(o, 'createdAt', '')
+	return r
+}
+
+function parseSettings(o: UTSJSONObject): Settings {
+	const s = new Settings()
+	s.coinBalance = numOf(o, 'coinBalance', 0)
+	s.pityCount = numOf(o, 'pityCount', 0)
+	s.streakDays = numOf(o, 'streakDays', 0)
+	s.lastCheckinDate = strOf(o, 'lastCheckinDate', '')
+	s.fullweekClaimedWeek = strOf(o, 'fullweekClaimedWeek', '')
+	s.isFirstLaunch = boolOf(o, 'isFirstLaunch', true)
+	s.firstLaunchDate = strOf(o, 'firstLaunchDate', '')
+	s.lastBackupDate = strOf(o, 'lastBackupDate', '')
+	s.lastPassiveDate = strOf(o, 'lastPassiveDate', '')
+	s.apiKey = strOf(o, 'apiKey', '')
+	s.apiBase = strOf(o, 'apiBase', 'https://api.deepseek.com/v1')
+	s.apiModel = strOf(o, 'apiModel', 'deepseek-chat')
+	s.vibrate = boolOf(o, 'vibrate', true)
+	return s
+}
+
+function parseDb(text: string): Database | null {
+	let root: UTSJSONObject | null = null
+	try {
+		root = JSON.parse(text) as UTSJSONObject
+	} catch (e) {
+		root = null
+	}
+	if (root == null) {
+		return null
+	}
+	const db = new Database()
+	const settingsObj = root.getJSON('settings')
+	if (settingsObj != null) {
+		db.settings = parseSettings(settingsObj)
+	}
+	const petsArr = root.getArray<UTSJSONObject>('pets')
+	if (petsArr != null) {
+		for (let i = 0; i < petsArr.length; i++) {
+			db.pets.push(parsePet(petsArr[i]))
+		}
+	}
+	const itemsArr = root.getArray<UTSJSONObject>('items')
+	if (itemsArr != null) {
+		for (let i = 0; i < itemsArr.length; i++) {
+			db.items.push(parseItem(itemsArr[i]))
+		}
+	}
+	const checkinArr = root.getArray<UTSJSONObject>('checkins')
+	if (checkinArr != null) {
+		for (let i = 0; i < checkinArr.length; i++) {
+			db.checkins.push(parseCheckin(checkinArr[i]))
+		}
+	}
+	const walletArr = root.getArray<UTSJSONObject>('wallet')
+	if (walletArr != null) {
+		for (let i = 0; i < walletArr.length; i++) {
+			db.wallet.push(parseWallet(walletArr[i]))
+		}
+	}
+	const logArr = root.getArray<UTSJSONObject>('drawLogs')
+	if (logArr != null) {
+		for (let i = 0; i < logArr.length; i++) {
+			db.drawLogs.push(parseDrawLog(logArr[i]))
+		}
+	}
+	const msgArr = root.getArray<UTSJSONObject>('messages')
+	if (msgArr != null) {
+		for (let i = 0; i < msgArr.length; i++) {
+			db.messages.push(parseMessage(msgArr[i]))
+		}
+	}
+	db.nextId = numOf(root, 'nextId', 1)
+	return db
+}
+
+// ===== 生命周期 =====
+function persist(): void {
+	if (cached == null) {
+		return
+	}
+	uni.setStorageSync(DB_KEY, JSON.stringify(cached))
+}
+
+function nextId(db: Database): number {
+	const id = db.nextId
+	db.nextId = db.nextId + 1
+	return id
+}
+
+function findItemRef(db: Database, itemType: string): ItemRow {
+	for (let i = 0; i < db.items.length; i++) {
+		if (db.items[i].itemType == itemType) {
+			return db.items[i]
+		}
+	}
+	const row = new ItemRow()
+	row.id = nextId(db)
+	row.itemType = itemType
+	row.quantity = 0
+	db.items.push(row)
+	return row
+}
+
+function ensureDefaults(db: Database): void {
+	const today = todayStr()
+	if (db.settings.firstLaunchDate == '') {
+		db.settings.firstLaunchDate = today
+	}
+	if (db.settings.apiBase == '') {
+		db.settings.apiBase = 'https://api.deepseek.com/v1'
+	}
+	if (db.settings.apiModel == '') {
+		db.settings.apiModel = 'deepseek-chat'
+	}
+	if (db.settings.coinBalance < 0) {
+		db.settings.coinBalance = 0
+	}
+	findItemRef(db, 'food')
+	findItemRef(db, 'book')
+
+	// 保证同时仅一只陪伴宠物
+	let activeCount = 0
+	for (let i = 0; i < db.pets.length; i++) {
+		if (db.pets[i].isActive) {
+			activeCount = activeCount + 1
+		}
+	}
+	if (db.pets.length > 0 && activeCount == 0) {
+		db.pets[0].isActive = true
+	} else if (activeCount > 1) {
+		let kept = false
+		for (let i = 0; i < db.pets.length; i++) {
+			if (db.pets[i].isActive) {
+				if (kept) {
+					db.pets[i].isActive = false
+				} else {
+					kept = true
+				}
+			}
+		}
+	}
+
+	if (db.nextId <= 0) {
+		let maxId = 0
+		for (let i = 0; i < db.pets.length; i++) {
+			if (db.pets[i].id > maxId) maxId = db.pets[i].id
+		}
+		for (let i = 0; i < db.checkins.length; i++) {
+			if (db.checkins[i].id > maxId) maxId = db.checkins[i].id
+		}
+		for (let i = 0; i < db.wallet.length; i++) {
+			if (db.wallet[i].id > maxId) maxId = db.wallet[i].id
+		}
+		for (let i = 0; i < db.messages.length; i++) {
+			if (db.messages[i].id > maxId) maxId = db.messages[i].id
+		}
+		db.nextId = maxId + 1
+	}
+}
+
+export function initDatabase(): Database {
+	if (cached != null) {
+		return cached
+	}
+	const text = uni.getStorageSync(DB_KEY) as string
+	let loaded: Database | null = null
+	if (text != null && text.length > 0) {
+		loaded = parseDb(text)
+	}
+	if (loaded == null) {
+		loaded = new Database()
+		loaded.settings.firstLaunchDate = todayStr()
+		loaded.settings.isFirstLaunch = true
+	}
+	cached = loaded
+	ensureDefaults(loaded)
+	persist()
+	return loaded
+}
+
+export function getDb(): Database {
+	return initDatabase()
+}
+
+export function getSettingsSnapshot(): Settings {
+	return cloneSettings(getDb().settings)
+}
+
+// ===== 克隆，避免页面直接改到缓存对象 =====
+export function clonePet(p: Pet): Pet {
+	const r = new Pet()
+	r.id = p.id
+	r.petKey = p.petKey
+	r.name = p.name
+	r.growth = p.growth
+	r.chatUnlocked = p.chatUnlocked
+	r.isActive = p.isActive
+	r.acquiredAt = p.acquiredAt
+	r.createdAt = p.createdAt
+	return r
+}
+
+export function cloneSettings(s: Settings): Settings {
+	const r = new Settings()
+	r.coinBalance = s.coinBalance
+	r.pityCount = s.pityCount
+	r.streakDays = s.streakDays
+	r.lastCheckinDate = s.lastCheckinDate
+	r.fullweekClaimedWeek = s.fullweekClaimedWeek
+	r.isFirstLaunch = s.isFirstLaunch
+	r.firstLaunchDate = s.firstLaunchDate
+	r.lastBackupDate = s.lastBackupDate
+	r.lastPassiveDate = s.lastPassiveDate
+	r.apiKey = s.apiKey
+	r.apiBase = s.apiBase
+	r.apiModel = s.apiModel
+	r.vibrate = s.vibrate
+	return r
+}
+
+export function cloneCheckin(c: CheckinRow): CheckinRow {
+	const r = new CheckinRow()
+	r.id = c.id
+	r.date = c.date
+	r.type = c.type
+	r.weekday = c.weekday
+	r.coinEarned = c.coinEarned
+	r.createdAt = c.createdAt
+	return r
+}
+
+export function cloneMessage(m: ChatMessage): ChatMessage {
+	const r = new ChatMessage()
+	r.id = m.id
+	r.conversationId = m.conversationId
+	r.senderRole = m.senderRole
+	r.senderPetId = m.senderPetId
+	r.content = m.content
+	r.status = m.status
+	r.createdAt = m.createdAt
+	return r
+}
+
+// ===== 宠物 =====
+function findPetRef(db: Database, petId: number): Pet | null {
+	for (let i = 0; i < db.pets.length; i++) {
+		if (db.pets[i].id == petId) {
+			return db.pets[i]
+		}
+	}
+	return null
+}
+
+export function getPetById(petId: number): Pet | null {
+	const p = findPetRef(getDb(), petId)
+	if (p == null) {
+		return null
+	}
+	return clonePet(p)
+}
+
+export function getActivePetSnapshot(): Pet | null {
+	const db = getDb()
+	for (let i = 0; i < db.pets.length; i++) {
+		if (db.pets[i].isActive) {
+			return clonePet(db.pets[i])
+		}
+	}
+	return null
+}
+
+export function claimInitialPet(): Pet | null {
+	const db = getDb()
+	if (db.pets.length > 0) {
+		return null
+	}
+	const meta = findMeta(INITIAL_PET_KEY)
+	if (meta == null) {
+		return null
+	}
+	const now = nowIso()
+	const pet = new Pet()
+	pet.id = nextId(db)
+	pet.petKey = meta.id
+	pet.name = meta.name
+	pet.growth = 0
+	pet.chatUnlocked = false
+	pet.isActive = true
+	pet.acquiredAt = now
+	pet.createdAt = now
+	db.pets.push(pet)
+	db.settings.isFirstLaunch = false
+	persist()
+	return clonePet(pet)
+}
+
+export function setActivePet(petId: number): boolean {
+	const db = getDb()
+	const target = findPetRef(db, petId)
+	if (target == null) {
+		return false
+	}
+	for (let i = 0; i < db.pets.length; i++) {
+		db.pets[i].isActive = db.pets[i].id == petId
+	}
+	persist()
+	return true
+}
+
+export function feedPet(petId: number): FeedOutcome {
+	const out = new FeedOutcome()
+	const db = getDb()
+	const pet = findPetRef(db, petId)
+	if (pet == null) {
+		out.reason = '找不到宠物'
+		return out
+	}
+	if (pet.growth >= GROWTH_MAX) {
+		out.reason = '成长值已满'
+		return out
+	}
+	const food = findItemRef(db, 'food')
+	if (food.quantity <= 0) {
+		out.reason = '没有粮食了，打卡赚币抽奖吧'
+		return out
+	}
+	food.quantity = food.quantity - 1
+	pet.growth = pet.growth + 1
+	if (pet.growth > GROWTH_MAX) {
+		pet.growth = GROWTH_MAX
+	}
+	persist()
+	out.ok = true
+	return out
+}
+
+export function unlockChat(petId: number): UnlockOutcome {
+	const out = new UnlockOutcome()
+	const db = getDb()
+	const pet = findPetRef(db, petId)
+	if (pet == null) {
+		out.reason = '找不到宠物'
+		return out
+	}
+	if (pet.chatUnlocked) {
+		out.reason = '已解锁对话'
+		return out
+	}
+	if (pet.growth < GROWTH_MAX) {
+		out.reason = `成长值还需 ${GROWTH_MAX - pet.growth}`
+		return out
+	}
+	const books = findItemRef(db, 'book')
+	if (books.quantity < UNLOCK_BOOKS) {
+		out.reason = `还需 ${UNLOCK_BOOKS - books.quantity} 本书解锁对话`
+		return out
+	}
+	books.quantity = books.quantity - UNLOCK_BOOKS
+	pet.chatUnlocked = true
+	persist()
+	out.ok = true
+	return out
+}
+
+// ===== 打卡/货币 =====
+export function getItemQuantity(itemType: string): number {
+	const db = getDb()
+	return findItemRef(db, itemType).quantity
+}
+
+function addWallet(db: Database, type: string, amount: number, refId: number, createdAt: string): WalletRow {
+	db.settings.coinBalance = db.settings.coinBalance + amount
+	if (db.settings.coinBalance < 0) {
+		db.settings.coinBalance = 0
+	}
+	const row = new WalletRow()
+	row.id = nextId(db)
+	row.type = type
+	row.amount = amount
+	row.balance = db.settings.coinBalance
+	row.refId = refId
+	row.createdAt = createdAt
+	db.wallet.push(row)
+	return row
+}
+
+export function performCheckin(dateStr: string, kind: string, createdAt: string): CheckinOutcome {
+	const out = new CheckinOutcome()
+	const db = getDb()
+	const today = todayStr()
+	if (dateStr > today) {
+		out.reason = '不能给未来日期打卡'
+		return out
+	}
+	if (findCheckin(db.checkins, dateStr) != null) {
+		out.reason = '这一天已经打过卡了'
+		return out
+	}
+
+	const oldStreak = calcStreak(db.checkins, today, db.settings.firstLaunchDate)
+	const baseCoin = coinForDate(dateStr)
+	const record = new CheckinRow()
+	record.id = nextId(db)
+	record.date = dateStr
+	record.type = kind == 'makeup' ? 'makeup' : (isTrainingDate(dateStr) ? 'train' : 'rest')
+	record.weekday = weekdayOf(dateStr)
+	record.createdAt = createdAt
+	db.checkins.push(record)
+
+	const newStreak = calcStreak(db.checkins, today, db.settings.firstLaunchDate)
+	let bonus = 0
+	if (isTrainingDate(dateStr)) {
+		if (oldStreak < 3 && newStreak >= 3) {
+			bonus = bonus + STREAK_BONUS_3
+		}
+		if (oldStreak < 7 && newStreak >= 7) {
+			bonus = bonus + STREAK_BONUS_7
+		}
+	}
+	const total = baseCoin + bonus
+	record.coinEarned = total
+
+	addWallet(db, kind == 'makeup' ? 'makeup' : 'checkin', baseCoin, record.id, createdAt)
+	if (bonus > 0) {
+		addWallet(db, 'streak', bonus, record.id, createdAt)
+	}
+	db.settings.streakDays = newStreak
+	if (dateStr > db.settings.lastCheckinDate) {
+		db.settings.lastCheckinDate = dateStr
+	}
+	persist()
+
+	out.ok = true
+	out.coin = baseCoin
+	out.bonus = bonus
+	out.total = total
+	out.streak = newStreak
+	return out
+}
+
+function weekdayOf(dateStr: string): number {
+	const parts = dateStr.split('-')
+	if (parts.length < 3) {
+		return 1
+	}
+	const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+	const wd = d.getDay()
+	return wd == 0 ? 7 : wd
+}
+
+export function batchMakeup(startDate: string, endDate: string): MakeupSummary {
+	const out = new MakeupSummary()
+	const db = getDb()
+	const today = todayStr()
+	let start = startDate
+	let end = endDate
+	if (start == '' || end == '') {
+		out.reason = '请选择起止日期'
+		return out
+	}
+	if (start > today) {
+		out.reason = '所选范围还没有到来'
+		return out
+	}
+	if (end > today) {
+		end = today
+	}
+	if (start > end) {
+		out.reason = '起始日期不能晚于终止日期'
+		return out
+	}
+	let cursor = start
+	let days = 0
+	let coins = 0
+	let guard = 0
+	while (cursor <= end && guard < 4000) {
+		if (findCheckin(db.checkins, cursor) == null) {
+			const r = performCheckin(cursor, 'makeup', nowIso())
+			if (r.ok) {
+				days = days + 1
+				coins = coins + r.total
+			}
+		}
+		cursor = addDays(cursor, 1)
+		guard = guard + 1
+	}
+	if (days == 0) {
+		out.reason = '该范围无需补卡'
+		return out
+	}
+	out.ok = true
+	out.days = days
+	out.coins = coins
+	return out
+}
+
+function indexOfCheckin(checkins: CheckinRow[], dateStr: string): number {
+	for (let i = 0; i < checkins.length; i++) {
+		if (checkins[i].date == dateStr) {
+			return i
+		}
+	}
+	return -1
+}
+
+function removeCheckinAt(db: Database, index: number): void {
+	const kept: CheckinRow[] = []
+	for (let i = 0; i < db.checkins.length; i++) {
+		if (i != index) {
+			kept.push(db.checkins[i])
+		}
+	}
+	db.checkins = kept
+}
+
+// 取消一条打卡并扣回对应活力币；无记录返回 -1
+function cancelCheckinRecord(db: Database, dateStr: string): number {
+	const index = indexOfCheckin(db.checkins, dateStr)
+	if (index < 0) {
+		return -1
+	}
+	const record = db.checkins[index]
+	removeCheckinAt(db, index)
+
+	let deducted = 0
+	if (record.coinEarned > 0 && db.settings.coinBalance > 0) {
+		deducted = record.coinEarned < db.settings.coinBalance ? record.coinEarned : db.settings.coinBalance
+		addWallet(db, 'cancel', -deducted, record.id, nowIso())
+	}
+
+	// 取消当周训练日会破坏全勤条件，已领取的宝箱一并收回
+	if (isTrainingDate(dateStr) && db.settings.fullweekClaimedWeek != '' && db.settings.fullweekClaimedWeek == weekStartOf(dateStr)) {
+		db.settings.fullweekClaimedWeek = ''
+		if (db.settings.coinBalance > 0) {
+			const weekDeducted = FULLWEEK_COIN < db.settings.coinBalance ? FULLWEEK_COIN : db.settings.coinBalance
+			addWallet(db, 'cancel', -weekDeducted, 0, nowIso())
+			deducted = deducted + weekDeducted
+		}
+	}
+	return deducted
+}
+
+function recomputeCheckinMeta(db: Database): void {
+	const today = todayStr()
+	db.settings.streakDays = calcStreak(db.checkins, today, db.settings.firstLaunchDate)
+	let latest = ''
+	for (let i = 0; i < db.checkins.length; i++) {
+		const d = db.checkins[i].date
+		if (d <= today && d > latest) {
+			latest = d
+		}
+	}
+	db.settings.lastCheckinDate = latest
+}
+
+export function cancelCheckin(dateStr: string): CancelSummary {
+	const out = new CancelSummary()
+	const db = getDb()
+	if (dateStr == '') {
+		out.reason = '日期无效'
+		return out
+	}
+	if (dateStr > todayStr()) {
+		out.reason = '不能取消未来日期'
+		return out
+	}
+	const deducted = cancelCheckinRecord(db, dateStr)
+	if (deducted < 0) {
+		out.reason = '这一天没有打卡记录'
+		return out
+	}
+	recomputeCheckinMeta(db)
+	persist()
+	out.ok = true
+	out.days = 1
+	out.coins = deducted
+	return out
+}
+
+export function batchCancel(startDate: string, endDate: string): CancelSummary {
+	const out = new CancelSummary()
+	const db = getDb()
+	const today = todayStr()
+	let start = startDate
+	let end = endDate
+	if (start == '' || end == '') {
+		out.reason = '请选择起止日期'
+		return out
+	}
+	if (start > today) {
+		out.reason = '所选范围还没有到来'
+		return out
+	}
+	if (end > today) {
+		end = today
+	}
+	if (start > end) {
+		out.reason = '起始日期不能晚于终止日期'
+		return out
+	}
+	let cursor = start
+	let days = 0
+	let coins = 0
+	let guard = 0
+	while (cursor <= end && guard < 4000) {
+		const deducted = cancelCheckinRecord(db, cursor)
+		if (deducted >= 0) {
+			days = days + 1
+			coins = coins + deducted
+		}
+		cursor = addDays(cursor, 1)
+		guard = guard + 1
+	}
+	if (days == 0) {
+		out.reason = '该范围没有打卡记录'
+		return out
+	}
+	recomputeCheckinMeta(db)
+	persist()
+	out.ok = true
+	out.days = days
+	out.coins = coins
+	return out
+}
+
+export function getFullweekInfo(): FullweekInfo {
+	const db = getDb()
+	return calcFullweek(db.checkins, todayStr(), db.settings.fullweekClaimedWeek)
+}
+
+export function claimFullweek(): boolean {
+	const db = getDb()
+	const info = calcFullweek(db.checkins, todayStr(), db.settings.fullweekClaimedWeek)
+	if (!info.canClaim) {
+		return false
+	}
+	addWallet(db, 'fullweek', FULLWEEK_COIN, 0, nowIso())
+	db.settings.fullweekClaimedWeek = info.weekStart
+	persist()
+	return true
+}
+
+export function claimPassiveCoin(): boolean {
+	const db = getDb()
+	const today = todayStr()
+	if (db.settings.lastPassiveDate == today) {
+		return false
+	}
+	if (calcWilting(db.checkins, today, db.settings.firstLaunchDate)) {
+		return false
+	}
+	let active: Pet | null = null
+	for (let i = 0; i < db.pets.length; i++) {
+		if (db.pets[i].isActive) {
+			active = db.pets[i]
+		}
+	}
+	if (active == null) {
+		return false
+	}
+	addWallet(db, 'passive', PASSIVE_COIN, active.id, nowIso())
+	db.settings.lastPassiveDate = today
+	persist()
+	return true
+}
+
+// ===== 抽奖 =====
+function ownedKeysOf(db: Database): string[] {
+	const keys: string[] = []
+	for (let i = 0; i < db.pets.length; i++) {
+		keys.push(db.pets[i].petKey)
+	}
+	return keys
+}
+
+export function drawCards(count: number): DrawSummary {
+	const out = new DrawSummary()
+	const db = getDb()
+	if (count != 1 && count != 10) {
+		out.reason = '抽奖次数不正确'
+		return out
+	}
+	const cost = count == 10 ? DRAW_TEN_COST : DRAW_SINGLE_COST
+	if (db.settings.coinBalance < cost) {
+		out.reason = '活力币不足'
+		return out
+	}
+	out.cost = cost
+	out.pityBefore = db.settings.pityCount
+	const createdAt = nowIso()
+	const foodRate = 1 - EGG_RATE - BOOK_RATE
+
+	for (let n = 0; n < count; n++) {
+		let isEgg = db.settings.pityCount >= PITY_GUARANTEE_AT
+		let pityTriggered = isEgg
+		if (!isEgg) {
+			const roll = Math.random()
+			if (roll < foodRate) {
+				const item = findItemRef(db, 'food')
+				item.quantity = item.quantity + 1
+				db.settings.pityCount = db.settings.pityCount + 1
+				const r = new DrawOutcome()
+				r.kind = 'food'
+				out.results.push(r)
+				continue
+			}
+			if (roll < foodRate + BOOK_RATE) {
+				const item = findItemRef(db, 'book')
+				item.quantity = item.quantity + 1
+				db.settings.pityCount = db.settings.pityCount + 1
+				const r = new DrawOutcome()
+				r.kind = 'book'
+				out.results.push(r)
+				continue
+			}
+			isEgg = true
+			pityTriggered = false
+		}
+
+		if (isEgg) {
+			db.settings.pityCount = 0
+			const owned = ownedKeysOf(db)
+			if (isAllCollected(owned)) {
+				const food = findItemRef(db, 'food')
+				food.quantity = food.quantity + EGG_TO_FOOD
+				const r = new DrawOutcome()
+				r.kind = 'egg'
+				r.converted = true
+				r.pity = pityTriggered
+				out.results.push(r)
+			} else {
+				const avail = availableMetas(owned)
+				const idx = Math.floor(Math.random() * avail.length)
+				const meta = avail[idx]
+				const pet = new Pet()
+				pet.id = nextId(db)
+				pet.petKey = meta.id
+				pet.name = meta.name
+				pet.growth = 0
+				pet.chatUnlocked = false
+				let hasActive = false
+				for (let i = 0; i < db.pets.length; i++) {
+					if (db.pets[i].isActive) {
+						hasActive = true
+					}
+				}
+				pet.isActive = !hasActive
+				pet.acquiredAt = createdAt
+				pet.createdAt = createdAt
+				db.pets.push(pet)
+				out.newPets.push(clonePet(pet))
+				const r = new DrawOutcome()
+				r.kind = 'egg'
+				r.petId = pet.id
+				r.petKey = pet.petKey
+				r.petName = pet.name
+				r.pity = pityTriggered
+				out.results.push(r)
+			}
+		} else {
+			db.settings.pityCount = db.settings.pityCount + 1
+		}
+	}
+
+	const log = new DrawLogRow()
+	log.id = nextId(db)
+	log.drawType = count == 10 ? 'ten' : 'single'
+	log.cost = cost
+	log.result = JSON.stringify(out.results)
+	log.pityBefore = out.pityBefore
+	log.pityAfter = db.settings.pityCount
+	log.createdAt = createdAt
+	db.drawLogs.push(log)
+	addWallet(db, 'draw', -cost, log.id, createdAt)
+	out.pityAfter = db.settings.pityCount
+	out.ok = true
+	persist()
+	return out
+}
+
+// ===== 流水/统计 =====
+export function getWalletRecords(): WalletRow[] {
+	const db = getDb()
+	const out: WalletRow[] = []
+	for (let i = db.wallet.length - 1; i >= 0; i--) {
+		const r = new WalletRow()
+		r.id = db.wallet[i].id
+		r.type = db.wallet[i].type
+		r.amount = db.wallet[i].amount
+		r.balance = db.wallet[i].balance
+		r.refId = db.wallet[i].refId
+		r.createdAt = db.wallet[i].createdAt
+		out.push(r)
+	}
+	return out
+}
+
+export function getTotals(): Totals {
+	const db = getDb()
+	const t = new Totals()
+	t.petCount = db.pets.length
+	t.checkinDays = db.checkins.length
+	for (let i = 0; i < db.wallet.length; i++) {
+		if (db.wallet[i].amount > 0) {
+			t.coinsEarned = t.coinsEarned + db.wallet[i].amount
+		}
+	}
+	return t
+}
+
+// ===== 聊天 =====
+function conversationOf(petId: number): string {
+	return `private_${petId}`
+}
+
+export function getChatMessages(petId: number): ChatMessage[] {
+	const db = getDb()
+	const cid = conversationOf(petId)
+	const out: ChatMessage[] = []
+	for (let i = 0; i < db.messages.length; i++) {
+		if (db.messages[i].conversationId == cid) {
+			out.push(cloneMessage(db.messages[i]))
+		}
+	}
+	return out
+}
+
+export function getLastChatMessage(petId: number): ChatMessage | null {
+	const db = getDb()
+	const cid = conversationOf(petId)
+	for (let i = db.messages.length - 1; i >= 0; i--) {
+		if (db.messages[i].conversationId == cid) {
+			return cloneMessage(db.messages[i])
+		}
+	}
+	return null
+}
+
+export function addChatMessage(petId: number, role: string, content: string, status: string): ChatMessage {
+	const db = getDb()
+	const r = new ChatMessage()
+	r.id = nextId(db)
+	r.conversationId = conversationOf(petId)
+	r.senderRole = role
+	r.senderPetId = role == 'pet' ? petId : -1
+	r.content = content
+	r.status = status
+	r.createdAt = nowIso()
+	db.messages.push(r)
+	persist()
+	return cloneMessage(r)
+}
+
+export function updateChatMessageStatus(messageId: number, status: string): void {
+	const db = getDb()
+	for (let i = 0; i < db.messages.length; i++) {
+		if (db.messages[i].id == messageId) {
+			db.messages[i].status = status
+		}
+	}
+	persist()
+}
+
+// 取截至某条消息（含）的最近 20 条，供上下文组装
+export function getChatHistory(petId: number, upToId: number): ChatMessage[] {
+	const db = getDb()
+	const cid = conversationOf(petId)
+	const all: ChatMessage[] = []
+	for (let i = 0; i < db.messages.length; i++) {
+		if (db.messages[i].conversationId == cid && db.messages[i].id <= upToId) {
+			all.push(cloneMessage(db.messages[i]))
+		}
+	}
+	const start = all.length > CHAT_WINDOW ? all.length - CHAT_WINDOW : 0
+	const out: ChatMessage[] = []
+	for (let i = start; i < all.length; i++) {
+		out.push(all[i])
+	}
+	return out
+}
+
+export function buildChatRows(): ChatRow[] {
+	const db = getDb()
+	const rows: ChatRow[] = []
+	for (let i = 0; i < db.pets.length; i++) {
+		const p = db.pets[i]
+		if (!p.chatUnlocked) {
+			continue
+		}
+		const last = getLastChatMessage(p.id)
+		const row = new ChatRow()
+		row.petId = p.id
+		row.petKey = p.petKey
+		row.name = p.name
+		row.unlocked = true
+		if (last != null) {
+			row.lastText = last.content
+			row.lastAt = last.createdAt
+			row.lastTime = last.createdAt
+		} else {
+			row.lastText = '还没有聊过，打个招呼吧'
+			row.lastAt = p.acquiredAt
+			row.lastTime = ''
+		}
+		rows.push(row)
+	}
+	// 最新消息倒序（简单插入排序，列表很小）
+	for (let i = 1; i < rows.length; i++) {
+		const cur = rows[i]
+		let j = i - 1
+		while (j >= 0 && rows[j].lastAt < cur.lastAt) {
+			rows[j + 1] = rows[j]
+			j = j - 1
+		}
+		rows[j + 1] = cur
+	}
+	return rows
+}
+
+// ===== 设置 =====
+export function updateVibrate(on: boolean): void {
+	const db = getDb()
+	db.settings.vibrate = on
+	persist()
+}
+
+export function updateAiSettings(key: string, base: string, model: string): void {
+	const db = getDb()
+	db.settings.apiKey = key
+	db.settings.apiBase = base == '' ? 'https://api.deepseek.com/v1' : base
+	db.settings.apiModel = model == '' ? 'deepseek-chat' : model
+	persist()
+}
+
+// ===== 备份 =====
+function backupKey(dateStr: string, d: Date): string {
+	return `${BACKUP_PREFIX}${dateStr}_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`
+}
+
+function cleanupBackups(): void {
+	const info = uni.getStorageInfoSync()
+	const keys: string[] = []
+	for (let i = 0; i < info.keys.length; i++) {
+		if (info.keys[i].length > BACKUP_PREFIX.length && info.keys[i].substring(0, BACKUP_PREFIX.length) == BACKUP_PREFIX) {
+			keys.push(info.keys[i])
+		}
+	}
+	// 按 key 里的时间升序冒泡，删除最旧的
+	for (let i = 0; i < keys.length; i++) {
+		for (let j = 0; j + 1 < keys.length - i; j++) {
+			if (keys[j] > keys[j + 1]) {
+				const tmp = keys[j]
+				keys[j] = keys[j + 1]
+				keys[j + 1] = tmp
+			}
+		}
+	}
+	while (keys.length > BACKUP_KEEP_DAYS) {
+		uni.removeStorageSync(keys[0])
+		keys.shift()
+	}
+}
+
+export function backupNow(): boolean {
+	const db = getDb()
+	const now = new Date()
+	const today = todayStr()
+	const key = backupKey(today, now)
+	uni.setStorageSync(key, JSON.stringify(db))
+	db.settings.lastBackupDate = today
+	cleanupBackups()
+	persist()
+	return true
+}
+
+export function autoDailyBackup(): void {
+	const db = getDb()
+	const today = todayStr()
+	if (db.settings.lastBackupDate != today) {
+		backupNow()
+	}
+}
+
+// ===== 导入导出 =====
+export function buildExportJson(): string {
+	const db = getDb()
+	const bundle = new ExportBundle()
+	bundle.app = 'buddy'
+	bundle.version = APP_VERSION
+	bundle.exportedAt = nowIso()
+	bundle.pets = db.pets
+	bundle.items = db.items
+	bundle.checkins = db.checkins
+	bundle.wallet = db.wallet
+	bundle.drawLogs = db.drawLogs
+	bundle.messages = db.messages
+	bundle.nextId = db.nextId
+
+	const s = new ExportSettings()
+	s.coinBalance = db.settings.coinBalance
+	s.pityCount = db.settings.pityCount
+	s.streakDays = db.settings.streakDays
+	s.lastCheckinDate = db.settings.lastCheckinDate
+	s.fullweekClaimedWeek = db.settings.fullweekClaimedWeek
+	s.isFirstLaunch = db.settings.isFirstLaunch
+	s.firstLaunchDate = db.settings.firstLaunchDate
+	s.lastBackupDate = db.settings.lastBackupDate
+	s.lastPassiveDate = db.settings.lastPassiveDate
+	s.apiBase = db.settings.apiBase
+	s.apiModel = db.settings.apiModel
+	s.vibrate = db.settings.vibrate
+	bundle.settings = s
+	return JSON.stringify(bundle)
+}
+
+export function importData(text: string): boolean {
+	let root: UTSJSONObject | null = null
+	try {
+		root = JSON.parse(text) as UTSJSONObject
+	} catch (e) {
+		root = null
+	}
+	if (root == null) {
+		return false
+	}
+	if (strOf(root, 'app', '') != 'buddy') {
+		return false
+	}
+	const imported = parseDb(text)
+	if (imported == null) {
+		return false
+	}
+	// 导出文件不含 Key，导入后保留本机配置
+	const currentKey = getDb().settings.apiKey
+	imported.settings.apiKey = currentKey
+	cached = imported
+	ensureDefaults(imported)
+	persist()
+	return true
+}

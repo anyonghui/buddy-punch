@@ -1,0 +1,435 @@
+<template>
+	<view class="mine-page buddy-page paper-texture">
+		<scroll-view class="page-scroll" scroll-y>
+			<!-- ① 概览 -->
+			<view class="overview-row">
+				<text class="overview-text">宠物 {{ totals.petCount }} 只 · 打卡 {{ totals.checkinDays }} 天 · 累计 {{ totals.coinsEarned }}</text>
+				<GameIcon icon="coin" :size="24" :ml="4" />
+			</view>
+
+			<!-- ② 背包 -->
+			<view class="bag-row">
+				<view class="bag-card buddy-card">
+					<GameIcon icon="food" :size="64" />
+					<text class="bag-name">粮食</text>
+					<text class="bag-count">{{ foodCount }}</text>
+				</view>
+				<view class="bag-card buddy-card">
+					<GameIcon icon="book" :size="64" />
+					<text class="bag-name">书籍</text>
+					<text class="bag-count">{{ bookCount }}</text>
+				</view>
+			</view>
+
+			<!-- ③ 流水入口 -->
+			<view class="row-item" @click="goWallet">
+				<text class="row-text">货币流水</text>
+				<text class="row-arrow">›</text>
+			</view>
+
+			<!-- ④ 数据管理 -->
+			<text class="section-title">数据管理</text>
+			<view class="list-card buddy-card">
+				<view class="list-row" @click="onExport">
+					<view class="list-row-main">
+						<text class="list-row-text">导出存档</text>
+						<text class="list-row-sub">JSON，不含 API Key；复制到剪贴板</text>
+					</view>
+					<text class="row-arrow">›</text>
+				</view>
+				<view class="list-row" @click="openImport">
+					<view class="list-row-main">
+						<text class="list-row-text">导入存档</text>
+						<text class="list-row-sub">全量覆盖本地数据</text>
+					</view>
+					<text class="row-arrow">›</text>
+				</view>
+				<view class="list-row" @click="onBackup">
+					<view class="list-row-main">
+						<text class="list-row-text">手动备份</text>
+						<text class="list-row-sub">保存到应用本地，保留最近 7 份</text>
+					</view>
+					<text class="row-arrow">›</text>
+				</view>
+			</view>
+
+			<!-- ⑤ 设置 -->
+			<text class="section-title">设置</text>
+			<view class="list-card buddy-card">
+				<view class="list-row">
+					<view class="list-row-main">
+						<text class="list-row-text">打卡震动</text>
+					</view>
+					<view class="toggle" :class="vibrateOn ? 'toggle-on' : 'toggle-off'" @click="toggleVibrate">
+						<text class="toggle-text" :class="vibrateOn ? 'toggle-text-on' : ''">{{ vibrateOn ? '开' : '关' }}</text>
+					</view>
+				</view>
+
+				<view class="ai-block">
+					<text class="ai-title">AI 接口（OpenAI 兼容，推荐 DeepSeek）</text>
+					<input class="buddy-input ai-input" v-model="apiKey" placeholder="API Key"  />
+					<input class="buddy-input ai-input" v-model="apiBase" placeholder="API Base，例如 https://api.deepseek.com/v1" />
+					<input class="buddy-input ai-input" v-model="apiModel" placeholder="模型，例如 deepseek-chat" />
+					<view class="buddy-btn buddy-btn-main save-btn" @click="onSaveAi">
+						<text class="buddy-btn-text-inverse">保存 AI 配置</text>
+					</view>
+					<text class="ai-hint">Key 只存本机，导出存档会排除。H5 端需接口支持跨域（CORS），否则请填可用的代理地址。</text>
+				</view>
+
+				<view class="list-row" @click="onAbout">
+					<text class="list-row-text">关于 / 版本 v{{ appVersion }}</text>
+					<text class="row-arrow">›</text>
+				</view>
+			</view>
+
+			<view class="mine-bottom-space"></view>
+		</scroll-view>
+
+		<!-- 导入弹层 -->
+		<view v-if="showImport" class="buddy-mask" @click="closeImport">
+			<view class="buddy-modal" @click.stop>
+				<text class="buddy-modal-title">导入存档</text>
+				<text class="import-warn">导入将覆盖当前数据，确认？</text>
+				<textarea class="import-area" v-model="importText" placeholder="粘贴此前导出的 JSON 存档"></textarea>
+				<view class="import-actions">
+					<view class="buddy-btn import-clip" @click="onReadClipboard">
+						<text class="buddy-btn-text">读剪贴板</text>
+					</view>
+					<view class="buddy-btn buddy-btn-main import-confirm" @click="onImportConfirm">
+						<text class="buddy-btn-text-inverse">确认导入</text>
+					</view>
+				</view>
+				<view class="import-cancel" @click="closeImport">
+					<text class="import-cancel-text">取消</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { totals, foodCount, bookCount, settings, refreshStore } from '@/common/store.uts'
+	import {
+		updateVibrate,
+		updateAiSettings,
+		buildExportJson,
+		importData,
+		backupNow
+	} from '@/common/repository.uts'
+	import { APP_VERSION } from '@/common/constants.uts'
+	import { copyText, readText } from '@/common/clipboard.uts'
+	import GameIcon from '@/components/game-icon/game-icon.uvue'
+
+	const appVersion = APP_VERSION
+	const vibrateOn = ref(true)
+	const apiKey = ref('sk-f99e98ca81c2441facdc9e14a0fb968b')
+	const apiBase = ref('https://api.deepseek.com')
+	const apiModel = ref('deepseek-flash')
+	const showImport = ref(false)
+	const importText = ref('')
+
+	function syncSettings(): void {
+		vibrateOn.value = settings.value.vibrate
+		apiKey.value = settings.value.apiKey
+		apiBase.value = settings.value.apiBase
+		apiModel.value = settings.value.apiModel
+	}
+
+	function goWallet(): void {
+		uni.navigateTo({ url: '/pages/wallet/wallet' })
+	}
+
+	function onExport(): void {
+		const text = buildExportJson()
+		copyText(text, (ok: boolean) => {
+			if (ok) {
+				uni.showToast({ title: '存档已复制到剪贴板', icon: 'none' })
+			} else {
+				uni.showToast({ title: '复制失败，请稍后再试', icon: 'none' })
+			}
+		})
+	}
+
+	function openImport(): void {
+		importText.value = ''
+		showImport.value = true
+	}
+
+	function closeImport(): void {
+		showImport.value = false
+	}
+
+	function onReadClipboard(): void {
+		readText((text: string) => {
+			if (text == '') {
+				uni.showToast({ title: '剪贴板为空', icon: 'none' })
+				return
+			}
+			importText.value = text
+		})
+	}
+
+	function onImportConfirm(): void {
+		if (importText.value.trim() == '') {
+			uni.showToast({ title: '请先粘贴存档内容', icon: 'none' })
+			return
+		}
+		if (!importData(importText.value)) {
+			uni.showToast({ title: '存档格式不正确', icon: 'none' })
+			return
+		}
+		showImport.value = false
+		refreshStore()
+		syncSettings()
+		uni.showToast({ title: '数据已被同步', icon: 'none' })
+	}
+
+	function onBackup(): void {
+		backupNow()
+		uni.showToast({ title: '已备份到本地', icon: 'none' })
+	}
+
+	function toggleVibrate(): void {
+		const next = !vibrateOn.value
+		updateVibrate(next)
+		refreshStore()
+		vibrateOn.value = next
+		if (next) {
+			uni.vibrateShort({})
+		}
+	}
+
+	function onSaveAi(): void {
+		updateAiSettings(apiKey.value.trim(), apiBase.value.trim(), apiModel.value.trim())
+		refreshStore()
+		syncSettings()
+		uni.showToast({ title: 'AI 配置已保存', icon: 'none' })
+	}
+
+	function onAbout(): void {
+		uni.showModal({
+			title: '关于 buddy',
+			content: `运动打卡宠物养成，个人自用。\n版本 v${APP_VERSION}`,
+			showCancel: false
+		})
+	}
+
+	onShow(() => {
+		refreshStore()
+		syncSettings()
+	})
+</script>
+
+<style lang="scss" scoped>
+	.mine-page {
+		flex: 1;
+		padding: 24rpx 24rpx 40rpx 24rpx;
+	}
+
+	.overview-row {
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+		padding-left: 6rpx;
+	}
+
+	.overview-text {
+		font-size: 26rpx;
+		color: var(--color-muted);
+	}
+
+	/* 背包 */
+	.bag-row {
+		flex-direction: row;
+		justify-content: space-between;
+		margin-top: 18rpx;
+	}
+
+	.bag-card {
+		width: 48.5%;
+		height: 210rpx;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.bag-name {
+		font-size: 24rpx;
+		color: var(--color-muted);
+		margin-top: 6rpx;
+	}
+
+	.bag-count {
+		font-size: 44rpx;
+		font-weight: bold;
+		color: var(--color-coin);
+		margin-top: 6rpx;
+	}
+
+	/* 流水入口 */
+	.row-item {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		margin-top: 22rpx;
+		padding: 24rpx;
+		border: 3rpx solid var(--color-line);
+		border-radius: 8rpx;
+		background-color: var(--color-paper-2);
+	}
+
+	.row-text {
+		font-size: 28rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+	}
+
+	.row-arrow {
+		font-size: 38rpx;
+		color: var(--color-muted);
+	}
+
+	.section-title {
+		font-size: 26rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+		margin-top: 30rpx;
+		margin-bottom: 12rpx;
+		padding-left: 6rpx;
+	}
+
+	.list-card {
+		padding-left: 22rpx;
+		padding-right: 22rpx;
+	}
+
+	.list-row {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-top: 22rpx;
+		padding-bottom: 22rpx;
+		border-bottom: 2rpx solid var(--color-line-soft);
+	}
+
+	.list-row-main {
+		flex: 1;
+	}
+
+	.list-row-text {
+		font-size: 28rpx;
+		color: var(--color-ink);
+	}
+
+	.list-row-sub {
+		font-size: 21rpx;
+		color: var(--color-muted);
+		margin-top: 6rpx;
+	}
+
+	/* 开关 */
+	.toggle {
+		width: 92rpx;
+		height: 52rpx;
+		align-items: center;
+		justify-content: center;
+		border: 3rpx solid var(--color-line);
+		border-radius: 6rpx;
+	}
+
+	.toggle-on {
+		background-color: var(--color-primary);
+	}
+
+	.toggle-off {
+		background-color: var(--color-line-soft);
+	}
+
+	.toggle-text {
+		font-size: 24rpx;
+		color: var(--color-muted);
+	}
+
+	.toggle-text-on {
+		color: var(--color-paper-2);
+		font-weight: bold;
+	}
+
+	/* AI 配置 */
+	.ai-block {
+		padding-top: 22rpx;
+		padding-bottom: 24rpx;
+		border-bottom: 2rpx solid var(--color-line-soft);
+	}
+
+	.ai-title {
+		font-size: 26rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+	}
+
+	.ai-input {
+		width: 100%;
+		margin-top: 14rpx;
+	}
+
+	.save-btn {
+		width: 100%;
+		height: 76rpx;
+		margin-top: 16rpx;
+	}
+
+	.ai-hint {
+		font-size: 21rpx;
+		color: var(--color-muted);
+		margin-top: 10rpx;
+	}
+
+	.mine-bottom-space {
+		height: 30rpx;
+	}
+
+	/* 导入弹层 */
+	.import-warn {
+		font-size: 24rpx;
+		color: var(--color-danger);
+		margin-top: 12rpx;
+	}
+
+	.import-area {
+		width: 100%;
+		height: 240rpx;
+		margin-top: 16rpx;
+		padding: 14rpx;
+		background-color: var(--color-paper-2);
+		border: 3rpx solid var(--color-line);
+		border-radius: 6rpx;
+		font-size: 22rpx;
+		color: var(--color-ink);
+	}
+
+	.import-actions {
+		width: 100%;
+		flex-direction: row;
+		margin-top: 20rpx;
+	}
+
+	.import-clip {
+		flex: 1;
+		margin-right: 10rpx;
+	}
+
+	.import-confirm {
+		flex: 1;
+		margin-left: 10rpx;
+	}
+
+	.import-cancel {
+		margin-top: 16rpx;
+		padding: 8rpx;
+	}
+
+	.import-cancel-text {
+		font-size: 24rpx;
+		color: var(--color-muted);
+	}
+</style>

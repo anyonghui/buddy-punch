@@ -1,0 +1,200 @@
+import { CheckinRow, FullweekDay, FullweekInfo, MonthStats, CalendarCell } from './types.uts'
+import {
+	WILT_MISSED_TRAIN_DAYS
+} from './constants.uts'
+import {
+	addDays,
+	daysInMonth,
+	firstWeekdaySunday,
+	isTrainingDate,
+	todayStr,
+	weekdayNumber,
+	weekStartOf
+} from './date.uts'
+
+// 查找某天的打卡记录
+export function findCheckin(checkins: CheckinRow[], dateStr: string): CheckinRow | null {
+	for (let i = 0; i < checkins.length; i++) {
+		if (checkins[i].date == dateStr) {
+			return checkins[i]
+		}
+	}
+	return null
+}
+
+export function hasCheckinOn(checkins: CheckinRow[], dateStr: string): boolean {
+	return findCheckin(checkins, dateStr) != null
+}
+
+export function hasTrainingCheckin(checkins: CheckinRow[], dateStr: string): boolean {
+	if (!isTrainingDate(dateStr)) {
+		return false
+	}
+	return hasCheckinOn(checkins, dateStr)
+}
+
+// 连续天数只看训练日；休息日不打卡不算断
+// 今天若是训练日但尚未打卡，显示到上一个训练日为止的连续数
+export function currentStreak(checkins: CheckinRow[], today: string, firstLaunchDate: string): number {
+	let start = firstLaunchDate
+	if (start == '' || start > today) {
+		start = today
+	}
+	let cursor = today
+	if (isTrainingDate(cursor) && !hasTrainingCheckin(checkins, cursor)) {
+		cursor = addDays(cursor, -1)
+	}
+	let streak = 0
+	let guard = 0
+	while (cursor >= start && guard < 4000) {
+		if (isTrainingDate(cursor)) {
+			if (hasTrainingCheckin(checkins, cursor)) {
+				streak = streak + 1
+			} else {
+				break
+			}
+		}
+		cursor = addDays(cursor, -1)
+		guard = guard + 1
+	}
+	return streak
+}
+
+// 连续 2 个训练日未打卡则蔫；打卡后立即恢复
+export function isWilting(checkins: CheckinRow[], today: string, firstLaunchDate: string): boolean {
+	let start = firstLaunchDate
+	if (start == '' || start > today) {
+		start = today
+	}
+	let cursor = today
+	let missed = 0
+	let guard = 0
+	while (cursor >= start && guard < 4000) {
+		if (isTrainingDate(cursor)) {
+			if (hasTrainingCheckin(checkins, cursor)) {
+				return false
+			}
+			missed = missed + 1
+			if (missed >= WILT_MISSED_TRAIN_DAYS) {
+				return true
+			}
+		}
+		cursor = addDays(cursor, -1)
+		guard = guard + 1
+	}
+	return missed >= WILT_MISSED_TRAIN_DAYS
+}
+
+export function buildFullweekInfo(checkins: CheckinRow[], today: string, claimedWeek: string): FullweekInfo {
+	const info = new FullweekInfo()
+	const start = weekStartOf(today)
+	info.weekStart = start
+	const labels: string[] = ['一', '三', '五', '六']
+	const offsets: number[] = [0, 2, 4, 5]
+	for (let i = 0; i < labels.length; i++) {
+		const day = new FullweekDay()
+		day.label = labels[i]
+		day.done = hasTrainingCheckin(checkins, addDays(start, offsets[i]))
+		if (day.done) {
+			info.doneCount = info.doneCount + 1
+		}
+		info.days.push(day)
+	}
+	info.missing = 4 - info.doneCount
+	info.claimed = claimedWeek == start
+	info.canClaim = weekdayNumber(today) == 7 && info.missing == 0 && !info.claimed
+	return info
+}
+
+export function buildMonthStats(checkins: CheckinRow[], year: number, month: number): MonthStats {
+	const stats = new MonthStats()
+	const prefix = `${year}-${month < 10 ? '0' + month : '' + month}`
+	for (let i = 0; i < checkins.length; i++) {
+		const c = checkins[i]
+		if (c.date.length >= 7 && c.date.substring(0, 7) == prefix) {
+			if (isTrainingDate(c.date)) {
+				stats.trainDays = stats.trainDays + 1
+			} else {
+				stats.restDays = stats.restDays + 1
+			}
+			stats.coins = stats.coins + c.coinEarned
+		}
+	}
+	return stats
+}
+
+export function buildCalendarCells(year: number, month: number, checkins: CheckinRow[], selectedDate: string, today: string): CalendarCell[] {
+	const cells: CalendarCell[] = []
+	const lead = firstWeekdaySunday(year, month)
+	for (let i = 0; i < lead; i++) {
+		const blank = new CalendarCell()
+		blank.key = `blank-${i}`
+		blank.empty = true
+		cells.push(blank)
+	}
+	const total = daysInMonth(year, month)
+	for (let d = 1; d <= total; d++) {
+		const dateStr = `${year}-${month < 10 ? '0' + month : '' + month}-${d < 10 ? '0' + d : '' + d}`
+		const cell = new CalendarCell()
+		cell.key = dateStr
+		cell.dateStr = dateStr
+		cell.day = d
+		cell.isToday = dateStr == today
+		cell.isFuture = dateStr > today
+		cell.isSelected = dateStr == selectedDate
+		cell.isTraining = isTrainingDate(dateStr)
+		const record = findCheckin(checkins, dateStr)
+		if (cell.isFuture) {
+			cell.status = ''
+		} else if (record != null) {
+			if (record.type == 'makeup') {
+				cell.status = '✏️'
+			} else if (cell.isTraining) {
+				cell.status = '✅'
+			} else {
+				cell.status = '〰️'
+			}
+		} else if (cell.isTraining) {
+			cell.status = '❌'
+		} else {
+			cell.status = ''
+		}
+		cells.push(cell)
+	}
+	return cells
+}
+
+export function checkinTypeLabel(type: string): string {
+	if (type == 'checkin') {
+		return '打卡'
+	}
+	if (type == 'train') {
+		return '训练打卡'
+	}
+	if (type == 'rest') {
+		return '休息打卡'
+	}
+	if (type == 'makeup') {
+		return '补卡'
+	}
+	if (type == 'cancel') {
+		return '取消打卡'
+	}
+	if (type == 'draw') {
+		return '抽奖'
+	}
+	if (type == 'fullweek') {
+		return '全勤宝箱'
+	}
+	if (type == 'passive') {
+		return '陪伴产币'
+	}
+	if (type == 'streak') {
+		return '连续加成'
+	}
+	return type
+}
+
+export function defaultToday(): string {
+	return todayStr()
+}

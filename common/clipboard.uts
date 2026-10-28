@@ -1,0 +1,28 @@
+// 存档搬运：H5 下用剪贴板承载 JSON，避免依赖 DOM 文件下载能力
+export function copyText(text: string, cb: (ok: boolean) => void): void {
+	uni.setClipboardData({
+		data: text,
+		success: (_res) => {
+			cb(true)
+		},
+		fail: (_err) => {
+			cb(false)
+		}
+	})
+}
+
+export function readText(cb: (text: string) => void): void {
+	uni.getClipboardData({
+		success: (res) => {
+			const data = res.data as string
+			if (data == null) {
+				cb('')
+				return
+			}
+			cb(data)
+		},
+		fail: (_err) => {
+			cb('')
+		}
+	})
+}

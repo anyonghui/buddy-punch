@@ -1,0 +1,104 @@
+// 全局轻量状态：页面只读这里的快照，写操作一律走 repository
+import { ref } from 'vue'
+import { Pet, Settings, CheckinRow, FullweekInfo, Totals } from './types.uts'
+import {
+	initDatabase,
+	getDb,
+	getSettingsSnapshot,
+	clonePet,
+	cloneCheckin,
+	getItemQuantity,
+	getFullweekInfo,
+	getTotals
+} from './repository.uts'
+import { todayStr, coinForDate, isTrainingDate, weekdayLabel } from './date.uts'
+import { currentStreak, isWilting, findCheckin } from './game.uts'
+
+export const coinBalance = ref(0)
+export const pityCount = ref(0)
+export const streakDays = ref(0)
+export const wilting = ref(false)
+export const pets = ref<Pet[]>([])
+export const checkins = ref<CheckinRow[]>([])
+export const settings = ref<Settings>(new Settings())
+export const fullweek = ref<FullweekInfo>(new FullweekInfo())
+export const totals = ref<Totals>(new Totals())
+export const foodCount = ref(0)
+export const bookCount = ref(0)
+export const hasPet = ref(false)
+export const activePetId = ref(-1)
+export const activePetKey = ref('')
+export const activePetName = ref('')
+export const activePetGrowth = ref(0)
+export const activePetChatUnlocked = ref(false)
+export const todayChecked = ref(false)
+export const todayCoinEarned = ref(0)
+export const todayTraining = ref(false)
+export const todayCoin = ref(0)
+export const todayLabel = ref('')
+export const aiConfigured = ref(false)
+export const unlockedChatCount = ref(0)
+
+export function refreshStore(): void {
+	initDatabase()
+	const db = getDb()
+	const today = todayStr()
+	const s = getSettingsSnapshot()
+
+	settings.value = s
+	coinBalance.value = s.coinBalance
+	pityCount.value = s.pityCount
+	todayLabel.value = weekdayLabel(today)
+	todayTraining.value = isTrainingDate(today)
+	todayCoin.value = coinForDate(today)
+	aiConfigured.value = s.apiKey.trim().length > 0
+
+	const list: Pet[] = []
+	let activeIndex = -1
+	let unlocked = 0
+	for (let i = 0; i < db.pets.length; i++) {
+		const p = clonePet(db.pets[i])
+		if (p.isActive) {
+			activeIndex = i
+		}
+		if (p.chatUnlocked) {
+			unlocked = unlocked + 1
+		}
+		list.push(p)
+	}
+	pets.value = list
+	unlockedChatCount.value = unlocked
+	hasPet.value = list.length > 0
+
+	if (activeIndex >= 0) {
+		const a = list[activeIndex]
+		activePetId.value = a.id
+		activePetKey.value = a.petKey
+		activePetName.value = a.name
+		activePetGrowth.value = a.growth
+		activePetChatUnlocked.value = a.chatUnlocked
+	} else {
+		activePetId.value = -1
+		activePetKey.value = ''
+		activePetName.value = ''
+		activePetGrowth.value = 0
+		activePetChatUnlocked.value = false
+	}
+
+	const rows: CheckinRow[] = []
+	for (let i = 0; i < db.checkins.length; i++) {
+		rows.push(cloneCheckin(db.checkins[i]))
+	}
+	checkins.value = rows
+
+	const record = findCheckin(db.checkins, today)
+	todayChecked.value = record != null
+	todayCoinEarned.value = record == null ? 0 : record.coinEarned
+
+	streakDays.value = currentStreak(db.checkins, today, s.firstLaunchDate)
+	wilting.value = isWilting(db.checkins, today, s.firstLaunchDate)
+	fullweek.value = getFullweekInfo()
+	totals.value = getTotals()
+	foodCount.value = getItemQuantity('food')
+	bookCount.value = getItemQuantity('book')
+}

@@ -1,0 +1,330 @@
+<script setup lang="uts">
+	import { initDatabase, autoDailyBackup } from '@/common/repository.uts'
+	import { refreshStore } from '@/common/store.uts'
+
+	// #ifdef APP-ANDROID || APP-HARMONY
+	let firstBackTime = 0
+	// #endif
+
+	onLaunch(() => {
+		initDatabase()
+		autoDailyBackup()
+		refreshStore()
+	})
+
+	onAppShow(() => {
+		refreshStore()
+	})
+
+	// #ifdef APP-ANDROID || APP-HARMONY
+	onLastPageBackPress(() => {
+		if (firstBackTime == 0) {
+			uni.showToast({
+				title: '再按一次退出应用',
+				position: 'bottom'
+			})
+			firstBackTime = Date.now()
+			setTimeout(() => {
+				firstBackTime = 0
+			}, 2000)
+		} else if (Date.now() - firstBackTime < 2000) {
+			firstBackTime = Date.now()
+			uni.exit()
+		}
+	})
+	// #endif
+</script>
+
+<style lang="scss">
+	page {
+		--color-primary: #{$color-primary};
+		--color-primary-soft: #{$color-primary-soft};
+		--color-success: #{$color-success};
+		--color-success-soft: #{$color-success-soft};
+		--color-coin: #{$color-coin};
+		--color-coin-soft: #{$color-coin-soft};
+		--color-danger: #{$color-danger};
+		--color-danger-soft: #{$color-danger-soft};
+		--color-disabled: #{$color-disabled};
+		--color-mask: #{$color-mask};
+		--color-paper: #{$color-paper};
+		--color-paper-2: #{$color-paper-2};
+		--color-ink: #{$color-ink};
+		--color-line: #{$color-line};
+		--color-line-soft: #{$color-line-soft};
+		--color-muted: #{$color-muted};
+		--radius: 6rpx;
+
+		background-color: $color-paper;
+		color: $color-ink;
+	}
+
+	/* ===== 基础布局 ===== */
+	.buddy-page {
+		flex: 1;
+		flex-direction: column;
+		background-color: var(--color-paper);
+		color: var(--color-ink);
+	}
+
+	/* 页面级滚动容器：内容超过一屏时纵向滚动 */
+	.page-scroll {
+		flex: 1;
+		width: 100%;
+	}
+
+	.buddy-row {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.buddy-between {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.buddy-center {
+		align-items: center;
+		justify-content: center;
+	}
+
+	.buddy-grow {
+		flex: 1;
+	}
+
+	.uni-row {
+		flex-direction: row;
+	}
+
+	.uni-column {
+		flex-direction: column;
+	}
+
+	/* ===== 文字层级 ===== */
+	.buddy-title {
+		font-size: 38rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+	}
+
+	.buddy-h2 {
+		font-size: 34rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+	}
+
+	.buddy-body {
+		font-size: 28rpx;
+		color: var(--color-ink);
+	}
+
+	.buddy-caption {
+		font-size: 22rpx;
+		color: var(--color-muted);
+	}
+
+	.buddy-coin {
+		color: var(--color-coin);
+		font-weight: bold;
+	}
+
+	.buddy-danger-text {
+		color: var(--color-danger);
+	}
+
+	.buddy-success-text {
+		color: var(--color-success);
+	}
+
+	.buddy-muted {
+		color: var(--color-muted);
+	}
+
+	/* ===== 卡片/容器 ===== */
+	.buddy-card {
+		background-color: var(--color-paper-2);
+		border: 3rpx dashed  var(--color-line);
+		border-radius: var(--radius);
+	}
+
+	.buddy-divider {
+		height: 2rpx;
+		background-color: var(--color-line-soft);
+		margin-top: 20rpx;
+		margin-bottom: 20rpx;
+	}
+
+	.buddy-pill {
+		padding-left: 12rpx;
+		padding-right: 12rpx;
+		padding-top: 4rpx;
+		padding-bottom: 4rpx;
+		border: 2rpx solid var(--color-line);
+		border-radius: 4rpx;
+		font-size: 20rpx;
+		color: var(--color-muted);
+	}
+
+	/* ===== 按钮 ===== */
+	.buddy-btn {
+		height: 88rpx;
+		padding-left: 28rpx;
+		padding-right: 28rpx;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		background-color: var(--color-paper-2);
+		border: 3rpx solid var(--color-line);
+		border-radius: var(--radius);
+	}
+
+	.buddy-btn-main {
+		height: 96rpx;
+		background-color: var(--color-primary);
+		border-color: var(--color-line);
+	}
+
+	.buddy-btn-coin {
+		background-color: var(--color-coin);
+		border-color: var(--color-line);
+	}
+
+	.buddy-btn-danger {
+		background-color: var(--color-danger);
+		border-color: var(--color-line);
+	}
+
+	.buddy-btn-small {
+		height: 56rpx;
+		padding-left: 18rpx;
+		padding-right: 18rpx;
+	}
+
+	.buddy-btn-disabled {
+		background-color: var(--color-line-soft);
+		border-color: var(--color-disabled);
+		color: var(--color-disabled);
+	}
+
+	.buddy-btn-text {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+	}
+
+	.buddy-btn-text-inverse {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: var(--color-paper-2);
+	}
+
+	.buddy-btn-text-small {
+		font-size: 23rpx;
+		color: var(--color-ink);
+	}
+
+	.buddy-btn-text-disabled {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: var(--color-disabled);
+	}
+
+	/* ===== 表单 ===== */
+	.buddy-input {
+		height: 80rpx;
+		padding-left: 20rpx;
+		padding-right: 20rpx;
+		background-color: var(--color-paper-2);
+		border: 3rpx solid var(--color-line);
+		border-radius: var(--radius);
+		font-size: 27rpx;
+		color: var(--color-ink);
+	}
+
+	/* ===== 进度条 ===== */
+	.buddy-progress {
+		height: 24rpx;
+		background-color: var(--color-paper-2);
+		border: 2rpx solid var(--color-line);
+		border-radius: 4rpx;
+		overflow: hidden;
+	}
+
+	.buddy-progress-fill {
+		height: 22rpx;
+		background-color: var(--color-primary);
+	}
+
+	.buddy-progress-fill-coin {
+		height: 22rpx;
+		background-color: var(--color-coin);
+	}
+
+	/* ===== 弹层 ===== */
+	.buddy-mask {
+		position: fixed;
+		left: 0;
+		right: 0;
+		top: 0;
+		bottom: 0;
+		/* 需盖住 H5 TabBar（框架默认 998），弹层统一置顶 */
+		z-index: 9999;
+		background-color: var(--color-mask);
+		align-items: center;
+		justify-content: center;
+	}
+
+	.buddy-modal {
+		width: 600rpx;
+		padding: 34rpx 30rpx 30rpx 30rpx;
+		background-color: var(--color-paper-2);
+		border: 3rpx solid var(--color-line);
+		border-radius: var(--radius);
+		align-items: center;
+		box-shadow: 0 6rpx 0 rgba(62, 58, 53, 0.12);
+	}
+
+	.buddy-modal-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+		text-align: center;
+		margin-top: 12rpx;
+	}
+
+	.buddy-modal-text {
+		font-size: 27rpx;
+		line-height: 1.6;
+		color: var(--color-ink);
+		text-align: center;
+		margin-top: 16rpx;
+	}
+
+	.buddy-modal-btn {
+		width: 100%;
+		margin-top: 28rpx;
+	}
+
+	/* ===== 空状态 ===== */
+	.buddy-empty {
+		padding-top: 90rpx;
+		padding-bottom: 90rpx;
+		align-items: center;
+	}
+
+	.buddy-empty-icon {
+		font-size: 64rpx;
+		margin-bottom: 20rpx;
+	}
+
+	.buddy-empty-text {
+		font-size: 28rpx;
+		color: var(--color-muted);
+		margin-bottom: 24rpx;
+	}
+
+	.buddy-gray {
+		opacity: 0.45;
+	}
+</style>

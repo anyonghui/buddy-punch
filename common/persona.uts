@@ -1,0 +1,38 @@
+// 角色卡加载：包内 static/pets/{key}/persona.md 作为 system prompt
+// H5 直接请求同源静态文件；读取失败时回退到通用宠物口吻，保证对话可用
+const personaCache = new Map<string, string>()
+
+function defaultPersona(petName: string): string {
+	return `你是「${petName}」，在微信里和一个平等的朋友聊天。始终待在角色里：不承认自己是 AI 或虚拟宠物，也不称呼对方「主人」，不用敬语。回复使用宠物口吻，每次 1~3 句，像微信打字一样简短自然，不写旁白和动作描写，也不主动提游戏数值。`
+}
+
+export function getPersona(petKey: string, petName: string, cb: (text: string) => void): void {
+	const cached = personaCache.get(petKey)
+	if (cached != null) {
+		cb(cached)
+		return
+	}
+	uni.request({
+		url: `/static/pets/${petKey}/persona.md`,
+		method: 'GET',
+		dataType: 'text',
+		success: (res) => {
+			if (res.statusCode == 200) {
+				const text = res.data as string
+				if (text != null && text.length > 0) {
+					personaCache.set(petKey, text)
+					cb(text)
+					return
+				}
+			}
+			const fallback = defaultPersona(petName)
+			personaCache.set(petKey, fallback)
+			cb(fallback)
+		},
+		fail: () => {
+			const fallback = defaultPersona(petName)
+			personaCache.set(petKey, fallback)
+			cb(fallback)
+		}
+	})
+}

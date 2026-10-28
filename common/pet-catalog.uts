@@ -1,0 +1,76 @@
+import { PetMeta } from './types.uts'
+
+// 与 static/pets/index.json 一一对应；id 为目录名，图集行数用于 deepseek v2 的 8×11 素材
+export const PET_CATALOG: PetMeta[] = [
+	new PetMeta('aileen', '艾琳', 9),
+	new PetMeta('anya', '阿尼亚', 9),
+	new PetMeta('aoyin', '敖隐', 9),
+	new PetMeta('bee-teemo', '提莫', 9),
+	new PetMeta('deepseek', '大肥鱼', 11),
+	new PetMeta('doro', 'Doro', 9),
+	new PetMeta('doubao', '豆包', 9),
+	new PetMeta('feibi', 'feibi', 9),
+	new PetMeta('gameboy', '电玩小子', 9),
+	new PetMeta('guga', '咕嘎', 9),
+	new PetMeta('hutao', '胡桃', 9),
+	new PetMeta('jinx', '金克丝', 9),
+	new PetMeta('jiyi', '吉伊', 9),
+	new PetMeta('kitmar', '喜多川海梦', 9),
+	new PetMeta('libai', '李白', 9),
+	new PetMeta('lumi-lock', 'LumiLock', 9),
+	new PetMeta('pearl-idol', '萨勒芬妮Q版', 9),
+	new PetMeta('pumpkin', 'pumpkin', 9),
+	new PetMeta('snow-plum-lillia', 'Snow Plum Lillia', 9),
+	new PetMeta('tide-muse', '萨勒芬妮', 9),
+	new PetMeta('usagi', '乌萨奇', 9),
+	new PetMeta('xuegao', '雪糕', 9)
+]
+
+export function findMeta(petKey: string): PetMeta | null {
+	for (let i = 0; i < PET_CATALOG.length; i++) {
+		if (PET_CATALOG[i].id == petKey) {
+			return PET_CATALOG[i]
+		}
+	}
+	return null
+}
+
+export function petNameOf(petKey: string): string {
+	const meta = findMeta(petKey)
+	if (meta == null) {
+		return petKey
+	}
+	return meta.name
+}
+
+export function isOwned(petKey: string, ownedKeys: string[]): boolean {
+	for (let i = 0; i < ownedKeys.length; i++) {
+		if (ownedKeys[i] == petKey) {
+			return true
+		}
+	}
+	return false
+}
+
+export function isAllCollected(ownedKeys: string[]): boolean {
+	for (let i = 0; i < PET_CATALOG.length; i++) {
+		if (!isOwned(PET_CATALOG[i].id, ownedKeys)) {
+			return false
+		}
+	}
+	return true
+}
+
+export function availableMetas(ownedKeys: string[]): PetMeta[] {
+	const out: PetMeta[] = []
+	for (let i = 0; i < PET_CATALOG.length; i++) {
+		if (!isOwned(PET_CATALOG[i].id, ownedKeys)) {
+			out.push(PET_CATALOG[i])
+		}
+	}
+	return out
+}
+
+export function petSpritePath(petKey: string): string {
+	return `/static/pets/${petKey}/spritesheet.webp`
+}

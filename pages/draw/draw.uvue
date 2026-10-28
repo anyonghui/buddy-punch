@@ -1,0 +1,569 @@
+<template>
+	<view class="draw-page buddy-page paper-texture">
+		<scroll-view class="page-scroll" scroll-y>
+			<!-- ① 奖池展示 -->
+			<view class="pool-row">
+				<view class="pool-card buddy-card">
+					<GameIcon icon="food" :size="56" />
+					<text class="pool-name">粮食</text>
+					<text class="pool-rate">79%</text>
+				</view>
+				<view class="pool-card buddy-card">
+					<GameIcon icon="book" :size="56" />
+					<text class="pool-name">书籍</text>
+					<text class="pool-rate">18%</text>
+				</view>
+				<view class="pool-card buddy-card">
+					<GameIcon icon="egg" :size="56" />
+					<text class="pool-name">蛋</text>
+					<text class="pool-rate">3%</text>
+				</view>
+			</view>
+			<text class="pool-note">{{ poolNote }}</text>
+
+			<!-- ② 保底进度 -->
+			<view class="pity-card buddy-card">
+				<view class="pity-top">
+					<view class="pity-label-row">
+						<GameIcon icon="egg" :size="28" :mr="6" />
+						<text class="pity-label">新宠物保底</text>
+					</view>
+					<text class="pity-count">{{ pityCount }}/30</text>
+				</view>
+				<view class="buddy-progress pity-bar">
+					<view class="buddy-progress-fill-coin" :style="{ width: pityPercent }"></view>
+				</view>
+				<text class="pity-caption">单抽与十连共享计数，30 抽内必出蛋</text>
+			</view>
+
+			<!-- ③ 余额 -->
+			<view class="balance-area">
+				<view class="balance-line">
+					<GameIcon icon="coin" :size="48" :mr="8" />
+					<text class="balance-text">{{ coinBalance }}</text>
+				</view>
+			</view>
+
+			<!-- ④ 抽奖操作区 -->
+			<view class="draw-actions">
+				<view class="buddy-btn single-btn" :class="singleDisabled ? 'buddy-btn-disabled' : ''" :style="{ height: actionBtnHeight }" @click="onSingle">
+					<view class="draw-btn-label">
+						<text :class="singleDisabled ? 'buddy-btn-text-disabled' : 'buddy-btn-text'">{{ singleText }}</text>
+						<GameIcon icon="coin" :size="30" :ml="6" />
+					</view>
+				</view>
+				<view class="buddy-btn ten-btn" :class="tenDisabled ? 'buddy-btn-disabled' : 'buddy-btn-main'" :style="{ height: actionBtnHeight }" @click="onTen">
+					<view class="draw-btn-label">
+						<text :class="tenDisabled ? 'buddy-btn-text-disabled' : 'buddy-btn-text-inverse'">{{ tenText }}</text>
+						<GameIcon icon="coin" :size="30" :ml="6" />
+					</view>
+				</view>
+			</view>
+			<text v-if="disabledHint != ''" class="disabled-hint">{{ disabledHint }}</text>
+
+			<!-- ⑤ 留白 -->
+			<view class="draw-space"></view>
+			<text class="draw-doodle">✎</text>
+		</scroll-view>
+
+		<!-- ⑥ 破壳动画 + ⑦ 结果 + ⑧ 新宠物揭晓 -->
+		<view v-if="showModal" class="buddy-mask" @click="onMaskTap">
+			<view class="buddy-modal draw-modal" @click.stop>
+				<view v-if="phase == 'working'" class="working-area">
+					<PetSprite v-if="hasPet" :petKey="activePetKey" state="working" :height="180" :playing="true" />
+					<view class="working-egg" :class="cracked ? 'working-egg-cracked' : ''">
+						<GameIcon icon="egg" :size="120" />
+					</view>
+					<text class="working-text">正在破壳…</text>
+					<text class="working-egg-line">{{ eggLine }}</text>
+				</view>
+
+				<view v-else class="result-area">
+					<view v-if="newPets.length > 0" class="reveal-area">
+						<text class="reveal-flag">新伙伴加入！图鉴 +1</text>
+						<PetSprite :petKey="newPets[0].petKey" state="idle" :height="300" :playing="true" />
+						<text class="reveal-name">{{ newPetNames }}</text>
+					</view>
+					<view v-else class="review-area">
+						<PetSprite v-if="hasPet" :petKey="activePetKey" state="review" :height="180" :playing="true" />
+					</view>
+
+					<text class="buddy-modal-title">抽奖结果</text>
+					<view v-for="r in resultRows" :key="r.key" class="result-row" :class="r.highlight ? 'result-row-egg' : ''">
+						<GameIcon :icon="r.key" :size="32" :mr="8" />
+						<text class="result-text">{{ r.text }}</text>
+						<text v-if="r.tag != ''" class="result-tag">{{ r.tag }}</text>
+					</view>
+					<text v-if="convertedHint != ''" class="converted-hint">{{ convertedHint }}</text>
+
+					<view class="buddy-btn buddy-btn-main buddy-modal-btn" @click="closeModal">
+						<text class="buddy-btn-text-inverse">好的</text>
+					</view>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import PetSprite from '@/components/pet-sprite/pet-sprite.uvue'
+	import GameIcon from '@/components/game-icon/game-icon.uvue'
+	import {
+		coinBalance,
+		pityCount,
+		hasPet,
+		activePetKey,
+		pets,
+		refreshStore
+	} from '@/common/store.uts'
+	import { drawCards } from '@/common/repository.uts'
+	import { isAllCollected } from '@/common/pet-catalog.uts'
+	import { DrawSummary, DrawDisplayRow, Pet } from '@/common/types.uts'
+	import { DRAW_SINGLE_COST, DRAW_TEN_COST, PITY_MAX, EGG_TO_FOOD } from '@/common/constants.uts'
+
+	const showModal = ref(false)
+	const phase = ref('')
+	const drawing = ref(false)
+	const cracked = ref(false)
+	const resultRows = ref<DrawDisplayRow[]>([])
+	const newPets = ref<Pet[]>([])
+	const convertedHint = ref('')
+
+	let drawTimer = -1
+	let crackTimer = -1
+	// 单抽/十连统一高度，避免被全局 buddy-btn(88rpx)/buddy-btn-main(96rpx) 拉不齐
+	const actionBtnHeight = '110rpx'
+
+	const singleDisabled = computed((): boolean => {
+		return drawing.value || coinBalance.value < DRAW_SINGLE_COST
+	})
+
+	const tenDisabled = computed((): boolean => {
+		return drawing.value || coinBalance.value < DRAW_TEN_COST
+	})
+
+	const singleText = computed((): string => {
+		if (drawing.value) {
+			return '破壳中…'
+		}
+		return `单抽 ${DRAW_SINGLE_COST}`
+	})
+
+	const tenText = computed((): string => {
+		if (drawing.value) {
+			return '破壳中…'
+		}
+		return `十连 ${DRAW_TEN_COST}`
+	})
+
+	const disabledHint = computed((): string => {
+		if (drawing.value) {
+			return ''
+		}
+		if (coinBalance.value < DRAW_SINGLE_COST) {
+			return '活力币不足，去打卡赚币吧'
+		}
+		if (coinBalance.value < DRAW_TEN_COST) {
+			return `活力币不足，十连需 ${DRAW_TEN_COST} 活力币`
+		}
+		return ''
+	})
+
+	const pityPercent = computed((): string => {
+		const percent = Math.min(100, Math.round(pityCount.value * 100 / PITY_MAX))
+		return `${percent}%`
+	})
+
+	const eggLine = computed((): string => {
+		if (cracked.value) {
+			return '蛋壳裂开了！'
+		}
+		return '蛋壳在动…'
+	})
+
+	const allCollected = computed((): boolean => {
+		const owned: string[] = []
+		for (let i = 0; i < pets.value.length; i++) {
+			owned.push(pets.value[i].petKey)
+		}
+		return isAllCollected(owned)
+	})
+
+	const poolNote = computed((): string => {
+		if (allCollected.value) {
+			return '已集齐全部种类，蛋会转化为 20 粮食'
+		}
+		return '蛋必破壳出新宠物，集齐后转化为 20 粮食'
+	})
+
+	const newPetNames = computed((): string => {
+		const names: string[] = []
+		for (let i = 0; i < newPets.value.length; i++) {
+			names.push(newPets.value[i].name)
+		}
+		return names.join('、')
+	})
+
+	function buildRows(summary: DrawSummary): void {
+		const rows: DrawDisplayRow[] = []
+		let food = 0
+		let book = 0
+		let eggs = 0
+		let pity = false
+		let converted = 0
+		for (let i = 0; i < summary.results.length; i++) {
+			const r = summary.results[i]
+			if (r.kind == 'food') {
+				food = food + 1
+			} else if (r.kind == 'book') {
+				book = book + 1
+			} else if (r.kind == 'egg') {
+				if (r.converted) {
+					converted = converted + 1
+					food = food + EGG_TO_FOOD
+				} else {
+					eggs = eggs + 1
+					if (r.pity) {
+						pity = true
+					}
+				}
+			}
+		}
+		if (food > 0) {
+			const row = new DrawDisplayRow()
+			row.key = 'food'
+			row.text = `粮食 ×${food}`
+			rows.push(row)
+		}
+		if (book > 0) {
+			const row = new DrawDisplayRow()
+			row.key = 'book'
+			row.text = `书籍 ×${book}`
+			rows.push(row)
+		}
+		if (eggs > 0) {
+			const row = new DrawDisplayRow()
+			row.key = 'egg'
+			row.text = `×${eggs}`
+			row.highlight = true
+			row.tag = pity ? '保底' : ''
+			rows.push(row)
+		}
+		resultRows.value = rows
+		if (converted > 0) {
+			convertedHint.value = `蛋已集齐，${converted} 个转化为 ${converted * EGG_TO_FOOD} 粮食`
+		} else {
+			convertedHint.value = ''
+		}
+	}
+
+	function clearDrawTimer(): void {
+		if (drawTimer != -1) {
+			clearTimeout(drawTimer)
+			drawTimer = -1
+		}
+		if (crackTimer != -1) {
+			clearTimeout(crackTimer)
+			crackTimer = -1
+		}
+	}
+
+	function doDraw(count: number): void {
+		if (drawing.value) {
+			return
+		}
+		const cost = count == 10 ? DRAW_TEN_COST : DRAW_SINGLE_COST
+		if (coinBalance.value < cost) {
+			uni.showToast({ title: '活力币不足，去打卡赚币吧', icon: 'none' })
+			return
+		}
+		const summary = drawCards(count)
+		if (!summary.ok) {
+			uni.showToast({ title: summary.reason, icon: 'none' })
+			return
+		}
+		refreshStore()
+		newPets.value = summary.newPets
+		buildRows(summary)
+		showModal.value = true
+		phase.value = 'working'
+		drawing.value = true
+		cracked.value = false
+		clearDrawTimer()
+		// 蛋晃动 → 破裂 → 揭晓，总共约 3.8 秒
+		crackTimer = setTimeout(() => {
+			cracked.value = true
+			crackTimer = -1
+		}, 1400)
+		drawTimer = setTimeout(() => {
+			phase.value = 'result'
+			drawing.value = false
+			drawTimer = -1
+		}, 2800)
+	}
+
+	function onSingle(): void {
+		doDraw(1)
+	}
+
+	function onTen(): void {
+		doDraw(10)
+	}
+
+	function onMaskTap(): void {
+		if (phase.value == 'working') {
+			return
+		}
+		closeModal()
+	}
+
+	function closeModal(): void {
+		clearDrawTimer()
+		showModal.value = false
+		phase.value = ''
+		drawing.value = false
+		resultRows.value = []
+		newPets.value = []
+		convertedHint.value = ''
+		cracked.value = false
+		refreshStore()
+	}
+
+	onShow(() => {
+		refreshStore()
+	})
+
+	onUnload(() => {
+		clearDrawTimer()
+	})
+</script>
+
+<style lang="scss" scoped>
+	.draw-page {
+		flex: 1;
+		padding: 26rpx 28rpx 40rpx 28rpx;
+	}
+
+	.pool-row {
+		flex-direction: row;
+		justify-content: space-between;
+	}
+
+	.pool-card {
+		width: 31.5%;
+		height: 176rpx;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.pool-name {
+		font-size: 24rpx;
+		color: var(--color-ink);
+		margin-top: 6rpx;
+	}
+
+	.pool-rate {
+		font-size: 22rpx;
+		color: var(--color-muted);
+		margin-top: 4rpx;
+	}
+
+	.pool-note {
+		font-size: 21rpx;
+		color: var(--color-muted);
+		text-align: center;
+		margin-top: 12rpx;
+	}
+
+	.pity-card {
+		margin-top: 24rpx;
+		padding: 22rpx 24rpx;
+	}
+
+	.pity-top {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.pity-label-row {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.pity-label {
+		font-size: 26rpx;
+		color: var(--color-ink);
+	}
+
+	.pity-count {
+		font-size: 26rpx;
+		font-weight: bold;
+		color: var(--color-coin);
+	}
+
+	.pity-bar {
+		width: 100%;
+		margin-top: 14rpx;
+	}
+
+	.pity-caption {
+		font-size: 21rpx;
+		color: var(--color-muted);
+		margin-top: 10rpx;
+	}
+
+	.balance-area {
+		align-items: center;
+		margin-top: 40rpx;
+	}
+
+	.balance-line {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.balance-text {
+		font-size: 52rpx;
+		font-weight: bold;
+		color: var(--color-coin);
+	}
+
+	.draw-actions {
+		flex-direction: row;
+		margin-top: 34rpx;
+	}
+
+	.single-btn {
+		flex: 1;
+		margin-right: 12rpx;
+	}
+
+	.ten-btn {
+		flex: 1.4;
+		margin-left: 12rpx;
+	}
+
+	.draw-btn-label {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.disabled-hint {
+		font-size: 22rpx;
+		color: var(--color-danger);
+		text-align: center;
+		margin-top: 14rpx;
+	}
+
+	.draw-space {
+		height: 120rpx;
+	}
+
+	.draw-doodle {
+		font-size: 38rpx;
+		color: var(--color-line-soft);
+		text-align: center;
+	}
+
+	/* 破壳弹层 */
+	.draw-modal {
+		padding-top: 30rpx;
+	}
+
+	.working-area {
+		align-items: center;
+	}
+
+	.working-egg {
+		align-items: center;
+		justify-content: center;
+	}
+
+	.working-egg-cracked {
+		transform: rotate(14deg);
+	}
+
+	.working-text {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+		margin-top: 8rpx;
+	}
+
+	.working-egg-line {
+		font-size: 22rpx;
+		color: var(--color-muted);
+		margin-top: 10rpx;
+	}
+
+	.result-area {
+		width: 100%;
+		align-items: center;
+	}
+
+	.reveal-area {
+		align-items: center;
+	}
+
+	.reveal-flag {
+		font-size: 27rpx;
+		font-weight: bold;
+		color: var(--color-coin);
+		padding: 8rpx 20rpx;
+		border: 3rpx solid var(--color-coin);
+		border-radius: 6rpx;
+		background-color: var(--color-coin-soft);
+	}
+
+	.reveal-name {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+		margin-top: 6rpx;
+	}
+
+	.review-area {
+		min-height: 190rpx;
+		align-items: center;
+		justify-content: flex-end;
+	}
+
+	.result-row {
+		width: 100%;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		margin-top: 14rpx;
+		padding-top: 10rpx;
+		padding-bottom: 10rpx;
+		border: 2rpx solid var(--color-line-soft);
+		border-radius: 6rpx;
+		background-color: var(--color-paper-2);
+	}
+
+	.result-row-egg {
+		border: 3rpx solid var(--color-coin);
+		background-color: var(--color-coin-soft);
+	}
+
+	.result-text {
+		font-size: 28rpx;
+		color: var(--color-ink);
+	}
+
+	.result-tag {
+		font-size: 20rpx;
+		color: var(--color-coin);
+		border: 2rpx solid var(--color-coin);
+		border-radius: 4rpx;
+		padding: 2rpx 10rpx;
+		margin-left: 12rpx;
+	}
+
+	.converted-hint {
+		font-size: 21rpx;
+		color: var(--color-muted);
+		margin-top: 12rpx;
+	}
+</style>

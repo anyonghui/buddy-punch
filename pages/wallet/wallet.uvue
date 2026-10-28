@@ -1,0 +1,140 @@
+<template>
+	<view class="wallet-page buddy-page paper-texture">
+		<scroll-view class="page-scroll" scroll-y>
+			<view v-if="records.length == 0" class="buddy-empty">
+				<view class="wallet-empty-icon">
+					<GameIcon icon="coin" :size="72" />
+				</view>
+				<text class="buddy-empty-text">还没有记录，去打卡吧</text>
+			</view>
+
+			<view v-else class="wallet-list">
+				<view v-for="record in records" :key="record.id" class="wallet-row">
+					<view class="row-left">
+						<text class="row-date">{{ dateLabel(record.createdAt) }}</text>
+						<text class="row-type">{{ typeLabel(record.type) }}</text>
+					</view>
+					<view class="row-right">
+						<view class="row-amount-line">
+							<text class="row-amount" :class="record.amount >= 0 ? 'amount-in' : 'amount-out'">{{ amountText(record.amount) }}</text>
+							<GameIcon icon="coin" :size="26" :ml="4" />
+						</view>
+						<text class="row-balance">余 {{ record.balance }}</text>
+					</view>
+				</view>
+			</view>
+
+			<view class="wallet-bottom-space"></view>
+		</scroll-view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { refreshStore } from '@/common/store.uts'
+	import { getWalletRecords } from '@/common/repository.uts'
+	import { checkinTypeLabel } from '@/common/game.uts'
+	import { shortDate } from '@/common/date.uts'
+	import { WalletRow } from '@/common/types.uts'
+	import GameIcon from '@/components/game-icon/game-icon.uvue'
+
+	const records = ref<WalletRow[]>([])
+
+	function loadRecords(): void {
+		records.value = getWalletRecords()
+	}
+
+	function dateLabel(createdAt: string): string {
+		return shortDate(createdAt)
+	}
+
+	function typeLabel(type: string): string {
+		return checkinTypeLabel(type)
+	}
+
+	function amountText(amount: number): string {
+		if (amount >= 0) {
+			return `+${amount}`
+		}
+		return `${amount}`
+	}
+
+	onShow(() => {
+		refreshStore()
+		loadRecords()
+	})
+</script>
+
+<style lang="scss" scoped>
+	.wallet-page {
+		flex: 1;
+		padding: 20rpx 24rpx 40rpx 24rpx;
+	}
+
+	.wallet-list {
+		flex: 1;
+	}
+
+	.wallet-row {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-top: 22rpx;
+		padding-bottom: 22rpx;
+		padding-left: 8rpx;
+		padding-right: 8rpx;
+		border-bottom: 2rpx solid var(--color-line-soft);
+	}
+
+	.row-left {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.row-date {
+		font-size: 24rpx;
+		color: var(--color-muted);
+		margin-right: 18rpx;
+	}
+
+	.row-type {
+		font-size: 27rpx;
+		color: var(--color-ink);
+	}
+
+	.row-right {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.row-amount-line {
+		flex-direction: row;
+		align-items: center;
+		margin-right: 18rpx;
+	}
+
+	.row-amount {
+		font-size: 30rpx;
+		font-weight: bold;
+	}
+
+	.amount-in {
+		color: var(--color-coin);
+	}
+
+	.amount-out {
+		color: var(--color-danger);
+	}
+
+	.row-balance {
+		font-size: 22rpx;
+		color: var(--color-muted);
+	}
+
+	.wallet-empty-icon {
+		margin-bottom: 20rpx;
+	}
+
+	.wallet-bottom-space {
+		height: 30rpx;
+	}
+</style>

@@ -1,0 +1,844 @@
+<template>
+	<view class="home buddy-page paper-texture">
+		<scroll-view class="page-scroll" scroll-y>
+			<!-- ① 顶部状态条 -->
+			<view class="home-status">
+				<view class="streak-line">
+					<GameIcon icon="train" :size="38" :mr="10" />
+					<text class="streak-text">连续 {{ streakDays }} 天</text>
+				</view>
+				<view class="status-right">
+					<view class="coin-line">
+						<GameIcon icon="coin" :size="42" :mr="8" />
+						<text class="coin-text">{{ coinBalance }}</text>
+					</view>
+					<view class="gift-btn" @click="goDraw">
+						<view class="gift-flow"></view>
+						<view class="gift-inner">
+							<GameIcon icon="gift" :size="56" />
+						</view>
+					</view>
+				</view>
+			</view>
+
+			<!-- ② 陪伴宠物区 -->
+			<view class="pet-area">
+				<view v-if="hasPet" class="pet-stage-row">
+					<!-- 左侧动作按钮 -->
+					<view class="pet-action-col">
+						<view v-for="item in leftActions" :key="item.state" class="pet-action-btn"
+							:class="pressedAction == item.state ? 'pet-action-btn-pressed' : ''"
+							@touchstart="pressAction(item.state)" @touchend="releaseAction"
+							@touchcancel="releaseAction" @click="onActionTap(item.state)">
+							<text class="pet-action-text"
+								:class="pressedAction == item.state ? 'pet-action-text-pressed' : ''">{{ item.label }}</text>
+						</view>
+					</view>
+
+					<view class="pet-stage" @click="onPetTap">
+						<view v-if="passiveTip" class="coin-bubble">
+							<text class="coin-bubble-text">+{{ passiveAmount }}</text>
+							<GameIcon icon="coin" :size="26" :ml="4" />
+						</view>
+						<!-- <view v-if="activePetChatUnlocked" class="chat-badge">
+							<text class="chat-badge-text">💬</text>
+						</view> -->
+						<PetSprite :petKey="activePetKey" :state="displayState" :height="480" :playing="true" :speed="animSpeed" :restart="playNonce" />
+					</view>
+
+					<!-- 右侧动作按钮 -->
+					<view class="pet-action-col">
+						<view v-for="item in rightActions" :key="item.state" class="pet-action-btn"
+							:class="pressedAction == item.state ? 'pet-action-btn-pressed' : ''"
+							@touchstart="pressAction(item.state)" @touchend="releaseAction"
+							@touchcancel="releaseAction" @click="onActionTap(item.state)">
+							<text class="pet-action-text"
+								:class="pressedAction == item.state ? 'pet-action-text-pressed' : ''">{{ item.label }}</text>
+						</view>
+					</view>
+				</view>
+
+				<view v-else class="pet-empty buddy-card">
+					<GameIcon icon="egg" :size="90" />
+					<text class="pet-empty-text">还没有宠物伙伴</text>
+					<view class="buddy-btn buddy-btn-main pet-claim-btn" @click="onClaim">
+						<text class="buddy-btn-text-inverse">领取初始宠物</text>
+					</view>
+				</view>
+
+				<view v-if="hasPet" class="pet-info">
+					<text class="pet-name">{{ activePetName }}</text>
+					<text class="pet-state-text">{{ wilting ? '蔫了' : '开心' }} · 陪伴中</text>
+					<text v-if="wilting" class="pet-hint">连续训练日断档了，完成今天打卡就能恢复</text>
+				</view>
+			</view>
+
+			<!-- ③ 今日打卡区 -->
+			<view class="checkin-area">
+				<view v-if="!hasPet" class="checkin-locked">
+					<text class="checkin-locked-text">领取宠物后开始打卡</text>
+				</view>
+				<view v-else-if="todayChecked" class="checkin-done">
+					<view class="checkin-done-row">
+						<text class="checkin-done-text">今日已打卡 ✓</text>
+						<text class="checkin-done-coin">+{{ todayCoinEarned }}</text>
+						<GameIcon icon="coin" :size="28" :ml="4" />
+					</view>
+				</view>
+				<view v-else class="buddy-btn checkin-btn" :class="todayTraining ? 'buddy-btn-main' : ''" @click="onCheckin">
+					<view class="checkin-label">
+						<text :class="todayTraining ? 'buddy-btn-text-inverse' : 'buddy-btn-text'">{{ checkinLabel }}</text>
+						<GameIcon icon="coin" :size="30" :ml="6" />
+					</view>
+				</view>
+			</view>
+
+			<!-- ④ 全勤进度 -->
+			<view class="week-area buddy-card">
+				<view v-if="fullweek.canClaim" class="week-claim" @click="onClaimFullweek">
+					<GameIcon icon="gift" :size="34" :mr="8" />
+					<text class="week-claim-text">领取全勤宝箱 +20</text>
+					<GameIcon icon="coin" :size="28" :ml="4" />
+				</view>
+				<view v-else class="week-progress">
+					<text class="week-title">本周全勤</text>
+					<view class="week-dots">
+						<view v-for="d in fullweek.days" :key="d.label" class="week-dot-wrap">
+							<text class="week-dot" :class="d.done ? 'week-dot-done' : ''">{{ d.done ? '●' : '○' }}</text>
+							<text class="week-dot-label">{{ d.label }}</text>
+						</view>
+					</view>
+					<text class="week-caption">{{ weekCaption }}</text>
+				</view>
+			</view>
+
+			<view class="home-bottom-space"></view>
+		</scroll-view>
+
+		<!-- ⑦ 打卡成功反馈 -->
+		<view v-if="showCheckinModal" class="buddy-mask" @click="closeCheckin">
+			<view class="buddy-modal" @click.stop>
+				<PetSprite v-if="hasPet" :petKey="activePetKey" state="jump" :height="200" :playing="true" />
+				<text class="buddy-modal-title">打卡完成！</text>
+				<view class="gain-line">
+					<text class="checkin-gain">+{{ lastOutcome.total }}</text>
+					<GameIcon icon="coin" :size="42" :ml="6" />
+				</view>
+				<view v-if="lastOutcome.bonus > 0" class="bonus-line">
+					<text class="checkin-bonus">连续训练奖励 +{{ lastOutcome.bonus }}</text>
+					<GameIcon icon="coin" :size="24" :ml="4" />
+				</view>
+				<text class="buddy-modal-text">{{ encourageText }}</text>
+				<view class="buddy-btn buddy-btn-main buddy-modal-btn" @click="closeCheckin">
+					<text class="buddy-btn-text-inverse">好的</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 全勤宝箱 -->
+		<view v-if="showFullweekModal" class="buddy-mask" @click="closeFullweek">
+			<view class="buddy-modal" @click.stop>
+				<GameIcon icon="gift" :size="80" />
+				<text class="buddy-modal-title">全勤达成</text>
+				<view class="gain-line">
+					<text class="checkin-gain">+20</text>
+					<GameIcon icon="coin" :size="42" :ml="6" />
+				</view>
+				<text class="buddy-modal-text">一周四个训练日全部完成，宝箱已入账。</text>
+				<view class="buddy-btn buddy-btn-main buddy-modal-btn" @click="closeFullweek">
+					<text class="buddy-btn-text-inverse">好的</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import PetSprite from '@/components/pet-sprite/pet-sprite.uvue'
+	import GameIcon from '@/components/game-icon/game-icon.uvue'
+	import {
+		coinBalance,
+		streakDays,
+		wilting,
+		hasPet,
+		activePetKey,
+		activePetName,
+		activePetChatUnlocked,
+		todayChecked,
+		todayCoinEarned,
+		todayTraining,
+		todayCoin,
+		fullweek,
+		settings,
+		refreshStore
+	} from '@/common/store.uts'
+	import { claimInitialPet, performCheckin, claimPassiveCoin, claimFullweek } from '@/common/repository.uts'
+	import { todayStr, nowIso, isTrainingDate } from '@/common/date.uts'
+	import { CheckinOutcome } from '@/common/types.uts'
+	import { getAnim, PetActionItem, PET_ACTIONS_LEFT, PET_ACTIONS_RIGHT } from '@/common/pet-anim.uts'
+
+	// 宠物帧播放减速倍数：1.5 = 慢 1.5 倍
+	const animSpeed = 1.5
+	const leftActions: PetActionItem[] = PET_ACTIONS_LEFT
+	const rightActions: PetActionItem[] = PET_ACTIONS_RIGHT
+	// 点击动作按钮时的按压态（颜色加深）
+	const pressedAction = ref('')
+	// 按钮触发的单次动作预览，播完自动回到 idle
+	const previewState = ref('')
+	// 累加值：重复点同一动作时强制从第 0 帧重播
+	const playNonce = ref(0)
+
+	const interactState = ref('')
+	const passiveTip = ref(false)
+	const passiveAmount = ref(1)
+	const showCheckinModal = ref(false)
+	const showFullweekModal = ref(false)
+	const lastOutcome = ref<CheckinOutcome>(new CheckinOutcome())
+	const encourageText = ref('')
+
+	let interactTimer = -1
+	let passiveTimer = -1
+	let previewTimer = -1
+	let pressTimer = -1
+	let lastTapAt = 0
+
+	const trainWords: string[] = [
+		'练完啦，今天的你闪闪发光。',
+		'累是累，但你做到了。',
+		'我数着呢，一下都没偷懒。',
+		'肌肉在偷偷长大，别告诉别人。',
+		'完成训练的你，值得被夸一句。'
+	]
+
+	const restWords: string[] = [
+		'休息也是训练的一部分。',
+		'今天慢慢走，明天继续冲。',
+		'拉伸一下，别让身体锈住。',
+		'歇好了，才有力气陪我玩。',
+		'偷得浮生半日闲，准了。'
+	]
+
+	const displayState = computed((): string => {
+		if (previewState.value != '') {
+			return previewState.value
+		}
+		if (wilting.value) {
+			return 'failed'
+		}
+		if (interactState.value != '') {
+			return interactState.value
+		}
+		return 'idle'
+	})
+
+	const checkinLabel = computed((): string => {
+		if (todayTraining.value) {
+			return `完成训练 +${todayCoin.value}`
+		}
+		return `休息打卡 +${todayCoin.value}`
+	})
+
+	const weekCaption = computed((): string => {
+		const info = fullweek.value
+		if (info.claimed) {
+			return '本周已领取'
+		}
+		if (info.canClaim) {
+			return '宝箱可领取'
+		}
+		if (info.missing > 0) {
+			return `差 ${info.missing} 天全勤`
+		}
+		return '周日可领取全勤宝箱'
+	})
+
+	function clearInteractTimer(): void {
+		if (interactTimer != -1) {
+			clearTimeout(interactTimer)
+			interactTimer = -1
+		}
+	}
+
+	function clearPassiveTimer(): void {
+		if (passiveTimer != -1) {
+			clearTimeout(passiveTimer)
+			passiveTimer = -1
+		}
+	}
+
+	function clearPreviewTimer(): void {
+		if (previewTimer != -1) {
+			clearTimeout(previewTimer)
+			previewTimer = -1
+		}
+	}
+
+	function clearPressTimer(): void {
+		if (pressTimer != -1) {
+			clearTimeout(pressTimer)
+			pressTimer = -1
+		}
+	}
+
+	// 结束动作预览，回到默认怠速动画
+	function clearPreview(): void {
+		clearPreviewTimer()
+		previewState.value = ''
+	}
+
+	// 播放一遍指定动作：时长按图集帧数/fps 换算（含减速倍数），播完回 idle
+	function playAction(state: string): void {
+		clearInteractTimer()
+		interactState.value = ''
+		clearPassiveTimer()
+		passiveTip.value = false
+		clearPreviewTimer()
+		const def = getAnim(state)
+		previewState.value = state
+		playNonce.value = playNonce.value + 1
+		const duration = Math.round(def.frames * 1000 / def.fps * animSpeed) + 120
+		previewTimer = setTimeout(() => {
+			previewState.value = ''
+			previewTimer = -1
+		}, duration)
+	}
+
+	function pressAction(state: string): void {
+		clearPressTimer()
+		pressedAction.value = state
+	}
+
+	// 松开后保留 120ms 按压态，保证快速点击也能看到颜色加深
+	function releaseAction(): void {
+		clearPressTimer()
+		pressTimer = setTimeout(() => {
+			pressedAction.value = ''
+			pressTimer = -1
+		}, 120)
+	}
+
+	function onActionTap(state: string): void {
+		pressAction(state)
+		releaseAction()
+		playAction(state)
+	}
+
+	function checkPassive(): void {
+		if (!hasPet.value) {
+			return
+		}
+		if (!claimPassiveCoin()) {
+			return
+		}
+		refreshStore()
+		clearPreview()
+		passiveTip.value = true
+		passiveAmount.value = 1
+		interactState.value = 'wave'
+		clearPassiveTimer()
+		passiveTimer = setTimeout(() => {
+			passiveTip.value = false
+			if (interactState.value == 'wave') {
+				interactState.value = ''
+			}
+			passiveTimer = -1
+		}, 2000)
+	}
+
+	function onPetTap(): void {
+		if (!hasPet.value) {
+			return
+		}
+		// 产币提示可点击关闭
+		if (passiveTip.value) {
+			passiveTip.value = false
+			clearPassiveTimer()
+			if (interactState.value == 'wave') {
+				interactState.value = ''
+			}
+			return
+		}
+		if (wilting.value) {
+			return
+		}
+		clearPreview()
+		const now = Date.now()
+		if (now - lastTapAt < 1000) {
+			return
+		}
+		lastTapAt = now
+		const state = Math.random() < 0.5 ? 'wave' : 'jump'
+		interactState.value = state
+		clearInteractTimer()
+		interactTimer = setTimeout(() => {
+			interactState.value = ''
+			interactTimer = -1
+		}, 1100)
+	}
+
+	function onCheckin(): void {
+		if (!hasPet.value || todayChecked.value) {
+			return
+		}
+		const today = todayStr()
+		const kind = isTrainingDate(today) ? 'train' : 'rest'
+		const out = performCheckin(today, kind, nowIso())
+		if (!out.ok) {
+			uni.showToast({ title: out.reason, icon: 'none' })
+			return
+		}
+		lastOutcome.value = out
+		const words = isTrainingDate(today) ? trainWords : restWords
+		encourageText.value = words[Math.floor(Math.random() * words.length)]
+		refreshStore()
+		clearPreview()
+		interactState.value = 'jump'
+		showCheckinModal.value = true
+		if (settings.value.vibrate) {
+			uni.vibrateShort({})
+		}
+	}
+
+	function onClaim(): void {
+		const pet = claimInitialPet()
+		if (pet == null) {
+			uni.showToast({ title: '领取失败，请稍后再试', icon: 'none' })
+			return
+		}
+		refreshStore()
+		clearPreview()
+		interactState.value = 'jump'
+		clearInteractTimer()
+		interactTimer = setTimeout(() => {
+			interactState.value = ''
+			interactTimer = -1
+		}, 1200)
+	}
+
+	function onClaimFullweek(): void {
+		if (!claimFullweek()) {
+			uni.showToast({ title: '还不满足领取条件', icon: 'none' })
+			return
+		}
+		refreshStore()
+		showFullweekModal.value = true
+		if (settings.value.vibrate) {
+			uni.vibrateShort({})
+		}
+	}
+
+	function closeCheckin(): void {
+		showCheckinModal.value = false
+		clearPreview()
+		interactState.value = ''
+		refreshStore()
+	}
+
+	function closeFullweek(): void {
+		showFullweekModal.value = false
+	}
+
+	function goDraw(): void {
+		uni.navigateTo({ url: '/pages/draw/draw' })
+	}
+
+	onShow(() => {
+		refreshStore()
+		checkPassive()
+	})
+
+	onHide(() => {
+		clearInteractTimer()
+		clearPassiveTimer()
+		clearPreview()
+		clearPressTimer()
+		pressedAction.value = ''
+		passiveTip.value = false
+		interactState.value = ''
+	})
+
+	onUnload(() => {
+		clearInteractTimer()
+		clearPassiveTimer()
+		clearPreviewTimer()
+		clearPressTimer()
+	})
+</script>
+
+<style lang="scss" scoped>
+	.home {
+		flex: 1;
+		/* 首页无标题栏，顶部留出更多呼吸空间 */
+		padding: 92rpx 28rpx 40rpx 28rpx;
+	}
+
+	/* ① 顶部状态条 */
+	.home-status {
+		height: 108rpx;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-left: 8rpx;
+		padding-right: 8rpx;
+	}
+
+	.streak-line {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.streak-text {
+		font-size: 30rpx;
+		color: var(--color-muted);
+	}
+
+	.status-right {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.coin-line {
+		flex-direction: row;
+		align-items: center;
+		margin-right: 24rpx;
+	}
+
+	.coin-text {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: var(--color-coin);
+	}
+
+	/* 抽奖入口：外层币色底 + 流光条，内层纸色面板露出边框 */
+	.gift-btn {
+		position: relative;
+		width: 96rpx;
+		height: 96rpx;
+		align-items: center;
+		justify-content: center;
+		border: 3rpx solid var(--color-line);
+		border-radius: 8rpx;
+		background-color: var(--color-coin);
+		overflow: hidden;
+	}
+
+	.gift-flow {
+		position: absolute;
+		top: -90rpx;
+		left: -140rpx;
+		width: 110rpx;
+		height: 300rpx;
+		z-index: 1;
+		background-image: linear-gradient(90deg, rgba(255, 254, 249, 0) 0%, rgba(255, 254, 249, 0.95) 50%, rgba(255, 254, 249, 0) 100%);
+		transform: rotate(24deg);
+		animation-name: gift-flow-run;
+		animation-duration: 2.6s;
+		animation-timing-function: linear;
+		animation-iteration-count: infinite;
+	}
+
+	.gift-inner {
+		position: relative;
+		z-index: 2;
+		width: 84rpx;
+		height: 84rpx;
+		align-items: center;
+		justify-content: center;
+		background-color: var(--color-paper-2);
+		border-radius: 4rpx;
+	}
+
+	@keyframes gift-flow-run {
+		0% {
+			transform: translateX(0) rotate(24deg);
+		}
+		100% {
+			transform: translateX(260rpx) rotate(24deg);
+		}
+	}
+
+	/* ② 宠物区 */
+	.pet-area {
+		min-height: 640rpx;
+		align-items: center;
+		justify-content: flex-end;
+		padding-top: 20rpx;
+	}
+
+	/* 动作按钮列 + 宠物舞台 + 动作按钮列 */
+	.pet-stage-row {
+		width: 100%;
+		flex-direction: row;
+		align-items: flex-end;
+		justify-content: center;
+	}
+
+	.pet-action-col {
+		width: 106rpx;
+		margin-left: 4rpx;
+		margin-right: 4rpx;
+		align-items: center;
+	}
+
+	.pet-action-btn {
+		width: 106rpx;
+		height: 62rpx;
+		margin-bottom: 14rpx;
+		align-items: center;
+		justify-content: center;
+		border: 3rpx dashed var(--color-line);
+		border-radius: 8rpx;
+		background-color: var(--color-paper-2);
+	}
+
+	/* 按压态：底色加深 + 描边实线 */
+	.pet-action-btn-pressed {
+		background-color: var(--color-primary-soft);
+		border-style: solid;
+		border-color: var(--color-ink);
+	}
+
+	.pet-action-text {
+		font-size: 24rpx;
+		color: var(--color-muted);
+	}
+
+	.pet-action-text-pressed {
+		font-weight: bold;
+		color: var(--color-ink);
+	}
+
+	.pet-stage {
+		position: relative;
+		align-items: center;
+		justify-content: flex-end;
+	}
+
+	.coin-bubble {
+		position: absolute;
+		top: 0;
+		left: -30rpx;
+		flex-direction: row;
+		align-items: center;
+		padding: 8rpx 18rpx;
+		border: 3rpx solid var(--color-coin);
+		border-radius: 8rpx;
+		background-color: var(--color-coin-soft);
+	}
+
+	.coin-bubble-text {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: var(--color-coin);
+	}
+
+	.chat-badge {
+		position: absolute;
+		top: 0;
+		right: -20rpx;
+		width: 52rpx;
+		height: 52rpx;
+		align-items: center;
+		justify-content: center;
+		border: 2rpx solid var(--color-line);
+		border-radius: 8rpx;
+		background-color: var(--color-paper-2);
+	}
+
+	.chat-badge-text {
+		font-size: 28rpx;
+	}
+
+	.pet-info {
+		margin-top: 20rpx;
+		align-items: center;
+	}
+
+	.pet-name {
+		font-size: 40rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+	}
+
+	.pet-state-text {
+		font-size: 24rpx;
+		color: var(--color-muted);
+		margin-top: 10rpx;
+	}
+
+	.pet-hint {
+		font-size: 22rpx;
+		color: var(--color-danger);
+		margin-top: 8rpx;
+	}
+
+	.pet-empty {
+		width: 100%;
+		height: 460rpx;
+		align-items: center;
+		justify-content: center;
+		border-style: dashed;
+	}
+
+	.pet-empty-text {
+		font-size: 28rpx;
+		color: var(--color-muted);
+		margin-top: 18rpx;
+	}
+
+	.pet-claim-btn {
+		width: 360rpx;
+		margin-top: 30rpx;
+	}
+
+	/* ③ 打卡区 */
+	.checkin-area {
+		min-height: 200rpx;
+		align-items: center;
+		justify-content: center;
+		padding-top: 20rpx;
+	}
+
+	.checkin-btn {
+		width: 100%;
+	}
+
+	.checkin-done {
+		width: 100%;
+		height: 96rpx;
+		align-items: center;
+		justify-content: center;
+		border: 3rpx dashed var(--color-success);
+		border-radius: 8rpx;
+		background-color: var(--color-success-soft);
+	}
+
+	.checkin-done-row {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.checkin-done-text {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: var(--color-success);
+	}
+
+	.checkin-done-coin {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: var(--color-success);
+		margin-left: 12rpx;
+	}
+
+	.checkin-label {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.checkin-locked {
+		align-items: center;
+	}
+
+	.checkin-locked-text {
+		font-size: 24rpx;
+		color: var(--color-muted);
+	}
+
+	/* ④ 全勤 */
+	.week-area {
+		margin-top: 20rpx;
+		padding: 22rpx 24rpx;
+	}
+
+	.week-progress {
+		flex-direction: row;
+		align-items: center;
+		flex-wrap: wrap;
+	}
+
+	.week-title {
+		font-size: 28rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+		margin-right: 24rpx;
+	}
+
+	.week-dots {
+		flex-direction: row;
+		align-items: center;
+		flex: 1;
+	}
+
+	.week-dot-wrap {
+		flex-direction: row;
+		align-items: center;
+		margin-right: 18rpx;
+	}
+
+	.week-dot {
+		font-size: 26rpx;
+		color: var(--color-line-soft);
+	}
+
+	.week-dot-done {
+		color: var(--color-success);
+	}
+
+	.week-dot-label {
+		font-size: 22rpx;
+		color: var(--color-muted);
+		margin-left: 4rpx;
+	}
+
+	.week-caption {
+		width: 100%;
+		font-size: 22rpx;
+		color: var(--color-muted);
+		margin-top: 12rpx;
+	}
+
+	.week-claim {
+		height: 88rpx;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		background-color: var(--color-coin-soft);
+		border: 3rpx solid var(--color-coin);
+		border-radius: 8rpx;
+	}
+
+	.week-claim-text {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: var(--color-coin);
+	}
+
+	.home-bottom-space {
+		height: 40rpx;
+	}
+
+	/* 弹层内容 */
+	.gain-line {
+		flex-direction: row;
+		align-items: center;
+		margin-top: 14rpx;
+	}
+
+	.checkin-gain {
+		font-size: 46rpx;
+		font-weight: bold;
+		color: var(--color-coin);
+	}
+
+	.bonus-line {
+		flex-direction: row;
+		align-items: center;
+		margin-top: 8rpx;
+	}
+
+	.checkin-bonus {
+		font-size: 26rpx;
+		color: var(--color-coin);
+	}
+</style>

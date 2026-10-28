@@ -1,0 +1,180 @@
+{
+  "pets": [
+    {
+      "id": "aileen",
+      "displayName": "艾琳",
+      "description": "可爱的Q版奇幻精灵弓箭手桌面宠物，金发碧眼、半透明翅膀、头戴月桂花冠，手持发光的金色长弓。",
+      "manifestPath": "/static/pets/aileen/pet.json",
+      "spritesheetPath": "/static/pets/aileen/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "anya",
+      "displayName": "阿尼亚",
+      "description": "《间谍过家家》阿尼亚·福杰的 Codex 风格电子宠物。",
+      "manifestPath": "/static/pets/anya/pet.json",
+      "spritesheetPath": "/static/pets/anya/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "aoyin",
+      "displayName": "敖隐",
+      "description": "以敖隐为灵感的迷你 Codex 伙伴，身着白蓝长袍，施展水龙魔法。",
+      "manifestPath": "/static/pets/aoyin/pet.json",
+      "spritesheetPath": "/static/pets/aoyin/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "bee-teemo",
+      "displayName": "提莫",
+      "description": "Codex 宠物风格的蜜蜂皮肤提莫，跳着 Badgers 舞步。",
+      "manifestPath": "/static/pets/bee-teemo/pet.json",
+      "spritesheetPath": "/static/pets/bee-teemo/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "deepseek",
+      "displayName": "大肥鱼",
+      "description": "蓝发长卷、鲸鱼围裙与金色海纹裙摆，安静乖巧的鲸鱼女仆。.",
+      "manifestPath": "/static/pets/deepseek/pet.json",
+      "spritesheetPath": "/static/pets/deepseek/spritesheet.webp",
+      "spriteRows": 11
+    },
+    {
+      "id": "doro",
+      "displayName": "Doro",
+      "description": "小巧的白色Q版宠物，粉色头发、紫色眼睛，头侧别着玫瑰蝴蝶结。",
+      "manifestPath": "/static/pets/doro/pet.json",
+      "spritesheetPath": "/static/pets/doro/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "doubao",
+      "displayName": "豆包",
+      "description": "以提供的头像为灵感打造的亲切 Codex 宠物：侧分深色波波头的Q版少女，棕色大眼睛，面容柔和，身穿简约黑色上衣。",
+      "manifestPath": "/static/pets/doubao/pet.json",
+      "spritesheetPath": "/static/pets/doubao/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "feibi",
+      "displayName": "feibi",
+      "description": "一位可爱的少女。",
+      "manifestPath": "/static/pets/feibi/pet.json",
+      "spritesheetPath": "/static/pets/feibi/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "gameboy",
+      "displayName": "电玩小子",
+      "description": "王者荣耀电玩小子——大头短腿的机械街机男孩，红蓝街机配色，戴护目镜，配有玩具火箭筒、游戏按键、像素方块和机械背包。",
+      "manifestPath": "/static/pets/gameboy/pet.json",
+      "spritesheetPath": "/static/pets/gameboy/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "guga",
+      "displayName": "咕嘎",
+      "description": "更圆润可爱的Q版企鹅卫衣女孩宠物，脸庞更柔和，比例更亲切。",
+      "manifestPath": "/static/pets/guga/pet.json",
+      "spritesheetPath": "/static/pets/guga/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "hutao",
+      "displayName": "胡桃",
+      "description": "胡桃是《原神》中的五星火元素角色，使用长柄武器，是璃月「往生堂」第七十七代堂主。她性格古灵精怪、活泼俏皮，喜欢作诗和恶作剧，但对生死有着成熟豁达的理解。外形以黑红服饰、礼帽和梅花装饰为特色，神秘又可爱。",
+      "manifestPath": "/static/pets/hutao/pet.json",
+      "spritesheetPath": "/static/pets/hutao/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "jinx",
+      "displayName": "金克丝",
+      "description": "Codex 宠物风格的金克丝，跳着灵感源自 Jake 的弹簧循环舞步。",
+      "manifestPath": "/static/pets/jinx/pet.json",
+      "spritesheetPath": "/static/pets/jinx/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "jiyi",
+      "displayName": "吉伊",
+      "description": "圆润的白色Q版小熊，深巧克力色描边、粉色脸颊、小短四肢、卷耳朵，背着粉色小熊挎包。",
+      "manifestPath": "/static/pets/jiyi/pet.json",
+      "spritesheetPath": "/static/pets/jiyi/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "kitmar",
+      "displayName": "喜多川海梦",
+      "description": "以喜多川海梦为灵感的开朗迷人电子伙伴。",
+      "manifestPath": "/static/pets/kitmar/pet.json",
+      "spritesheetPath": "/static/pets/kitmar/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "libai",
+      "displayName": "李白",
+      "description": "一只白衣红纹、持剑带酒葫芦的 Q 版剑仙 Codex 宠物。.",
+      "manifestPath": "/static/pets/libai/pet.json",
+      "spritesheetPath": "/static/pets/libai/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "lumi-lock",
+      "displayName": "LumiLock",
+      "description": "迷你粉彩偶像伙伴，贴近原始参考形象：蓬松粉发渐变为淡白，蓝紫色大眼睛，皮肤白皙，笑容柔和俏皮；黑色小娃娃造型刘海发饰，猫耳样白粉蝴蝶结，白色绒毛滚边，白粉配色服装点缀黑色丝带与蓝色宝石，亮红手套、链条装饰和深色小毛绒挂件。",
+      "manifestPath": "/static/pets/lumi-lock/pet.json",
+      "spritesheetPath": "/static/pets/lumi-lock/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "pearl-idol",
+      "displayName": "萨勒芬妮Q版",
+      "description": "LOL萨勒芬妮Q版形象，基于提供的水下角色参考设计。",
+      "manifestPath": "/static/pets/pearl-idol/pet.json",
+      "spritesheetPath": "/static/pets/pearl-idol/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "pumpkin",
+      "displayName": "pumpkin",
+      "description": "开朗的卡通Q版宠物“南瓜”，灵感来自身穿飘逸天蓝色连衣裙的金发乐天少女。",
+      "manifestPath": "/static/pets/pumpkin/pet.json",
+      "spritesheetPath": "/static/pets/pumpkin/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "snow-plum-lillia",
+      "displayName": "莉莉娅",
+      "description": "雪梅莉莉娅 Codex 宠物，已修复动作连贯性：镜像左跑时序、稳定失败/等待/工作中循环、更清晰的跳跃弧线，并清理了色键边缘。",
+      "manifestPath": "/static/pets/snow-plum-lillia/pet.json",
+      "spritesheetPath": "/static/pets/snow-plum-lillia/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "tide-muse",
+      "displayName": "萨勒芬妮",
+      "description": "基于提供的水下角色参考打造的优雅海洋精灵伙伴。",
+      "manifestPath": "/static/pets/tide-muse/pet.json",
+      "spritesheetPath": "/static/pets/tide-muse/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "usagi",
+      "displayName": "乌萨奇",
+      "description": "圆润的奶油色兔子桌面宠物，竖着长耳朵，脸颊泛红，小爪子，配上可爱的猫形小嘴。",
+      "manifestPath": "/static/pets/usagi/pet.json",
+      "spritesheetPath": "/static/pets/usagi/spritesheet.webp",
+      "spriteRows": 9
+    },
+    {
+      "id": "xuegao",
+      "displayName": "雪糕",
+      "description": "雪糕.",
+      "manifestPath": "/static/pets/xuegao/pet.json",
+      "spritesheetPath": "/static/pets/xuegao/spritesheet.webp",
+      "spriteRows": 9
+    }
+  ]
+}

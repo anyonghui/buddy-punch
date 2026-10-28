@@ -1,0 +1,718 @@
+<template>
+	<view class="calendar-page buddy-page paper-texture">
+		<scroll-view class="page-scroll" scroll-y>
+			<!-- ① 月历视图 -->
+			<view class="month-card buddy-card">
+				<view class="month-nav">
+					<view class="month-arrow" @click="prevMonth">
+						<text class="month-arrow-text">‹</text>
+					</view>
+					<text class="month-title">{{ monthTitle }}</text>
+					<view class="month-arrow" @click="nextMonth">
+						<text class="month-arrow-text">›</text>
+					</view>
+				</view>
+
+				<view class="week-header">
+					<text v-for="w in weekdayNames" :key="w" class="week-head-text">{{ w }}</text>
+				</view>
+
+				<view class="cal-grid">
+					<view v-for="cell in cells" :key="cell.key" class="cal-cell" :class="cellExtra(cell)" @click="onSelect(cell)">
+						<text v-if="!cell.empty" class="cal-day">{{ cell.day }}</text>
+						<text v-if="!cell.empty && cell.status != ''" class="cal-status">{{ cell.status }}</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- ② 批量补卡 / 批量取消 -->
+			<view class="batch-row">
+				<view class="buddy-btn batch-btn batch-btn-left" @click="openBatch">
+					<text class="buddy-btn-text">批量补卡</text>
+				</view>
+				<view class="buddy-btn batch-btn batch-btn-right" @click="openBatchCancel">
+					<text class="buddy-btn-text">批量取消</text>
+				</view>
+			</view>
+
+			<!-- ③ 当日详情 -->
+			<view class="detail-card buddy-card">
+				<text class="detail-title">{{ dayTitle }}</text>
+				<view class="detail-status-row">
+					<text class="detail-status">{{ dayStatus }}</text>
+					<view v-if="dayCoin > 0" class="detail-coin">
+						<text class="detail-coin-text">+{{ dayCoin }}</text>
+						<GameIcon icon="coin" :size="24" :ml="4" />
+					</view>
+				</view>
+				<view v-if="canMakeup || canCancel" class="detail-actions">
+					<view v-if="canMakeup" class="buddy-btn buddy-btn-small detail-btn" @click="onSingleMakeup">
+						<view class="makeup-label">
+							<text class="buddy-btn-text-small">{{ singleMakeupLabel }}</text>
+							<GameIcon icon="coin" :size="24" :ml="4" />
+						</view>
+					</view>
+					<view v-if="canCancel" class="buddy-btn buddy-btn-small detail-btn detail-cancel-btn" @click="onSingleCancel">
+						<view class="makeup-label">
+							<text class="detail-cancel-text">取消打卡 -{{ dayCoin }}</text>
+							<GameIcon icon="coin" :size="24" :ml="4" />
+						</view>
+					</view>
+				</view>
+			</view>
+
+			<!-- ④ 月度统计 -->
+			<view class="month-stats-row">
+				<text class="month-stats">训练 {{ stats.trainDays }} 天 · 休息 {{ stats.restDays }} 天 · 累计 +{{ stats.coins }}</text>
+				<GameIcon icon="coin" :size="24" :ml="4" />
+			</view>
+		</scroll-view>
+
+		<!-- ⑤ 补卡弹框 -->
+		<view v-if="showBatch" class="buddy-mask" @click="closeBatch">
+			<view class="buddy-modal" @click.stop>
+				<text class="buddy-modal-title">批量补卡</text>
+				<text class="batch-hint">范围内未打卡的日期自动补卡：训练日按类型给币，休息日 +1；全额、算连续、免费。</text>
+
+				<view class="date-row">
+					<text class="date-label">起始日期</text>
+					<picker class="date-picker" mode="date" :value="startDate" :end="today" @change="onStartChange">
+						<view class="date-field">
+							<text class="date-text">{{ startDate }}</text>
+						</view>
+					</picker>
+				</view>
+
+				<view class="date-row">
+					<text class="date-label">终止日期</text>
+					<picker class="date-picker" mode="date" :value="endDate" :end="today" @change="onEndChange">
+						<view class="date-field">
+							<text class="date-text">{{ endDate }}</text>
+						</view>
+					</picker>
+				</view>
+
+				<view class="batch-actions">
+					<view class="buddy-btn batch-cancel" @click="closeBatch">
+						<text class="buddy-btn-text">取消</text>
+					</view>
+					<view class="buddy-btn buddy-btn-main batch-confirm" @click="onBatchConfirm">
+						<text class="buddy-btn-text-inverse">确认补卡</text>
+					</view>
+				</view>
+			</view>
+		</view>
+
+		<!-- 补卡结果 -->
+		<view v-if="showBatchResult" class="buddy-mask" @click="closeBatchResult">
+			<view class="buddy-modal" @click.stop>
+				<text class="buddy-modal-title">补卡完成</text>
+				<view class="batch-result-row">
+					<text class="batch-result-text">补了 {{ batchResult.days }} 天，获得 {{ batchResult.coins }}</text>
+					<GameIcon icon="coin" :size="30" :ml="4" />
+				</view>
+				<view class="buddy-btn buddy-btn-main buddy-modal-btn" @click="closeBatchResult">
+					<text class="buddy-btn-text-inverse">好的</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- ⑥ 批量取消弹框 -->
+		<view v-if="showBatchCancel" class="buddy-mask" @click="closeBatchCancel">
+			<view class="buddy-modal" @click.stop>
+				<text class="buddy-modal-title">批量取消打卡</text>
+				<text class="batch-hint">范围内已打卡的日期会全部取消，并扣回获得的活力币；本周已领取的全勤宝箱会一并收回。</text>
+
+				<view class="date-row">
+					<text class="date-label">起始日期</text>
+					<picker class="date-picker" mode="date" :value="cancelStartDate" :end="today" @change="onCancelStartChange">
+						<view class="date-field">
+							<text class="date-text">{{ cancelStartDate }}</text>
+						</view>
+					</picker>
+				</view>
+
+				<view class="date-row">
+					<text class="date-label">终止日期</text>
+					<picker class="date-picker" mode="date" :value="cancelEndDate" :end="today" @change="onCancelEndChange">
+						<view class="date-field">
+							<text class="date-text">{{ cancelEndDate }}</text>
+						</view>
+					</picker>
+				</view>
+
+				<view class="batch-actions">
+					<view class="buddy-btn batch-cancel" @click="closeBatchCancel">
+						<text class="buddy-btn-text">取消</text>
+					</view>
+					<view class="buddy-btn buddy-btn-danger batch-confirm" @click="onBatchCancelConfirm">
+						<text class="buddy-btn-text-inverse">确认取消</text>
+					</view>
+				</view>
+			</view>
+		</view>
+
+		<!-- 单日取消确认 -->
+		<view v-if="showCancelConfirm" class="buddy-mask" @click="closeCancelConfirm">
+			<view class="buddy-modal" @click.stop>
+				<text class="buddy-modal-title">取消打卡</text>
+				<text class="buddy-modal-text">取消 {{ shortDate(pendingCancelDate) }} 的打卡记录，并扣回当天获得的活力币。</text>
+				<view class="batch-actions">
+					<view class="buddy-btn batch-cancel" @click="closeCancelConfirm">
+						<text class="buddy-btn-text">再想想</text>
+					</view>
+					<view class="buddy-btn buddy-btn-danger batch-confirm" @click="confirmSingleCancel">
+						<text class="buddy-btn-text-inverse">确认取消</text>
+					</view>
+				</view>
+			</view>
+		</view>
+
+		<!-- 取消结果 -->
+		<view v-if="showCancelResult" class="buddy-mask" @click="closeCancelResult">
+			<view class="buddy-modal" @click.stop>
+				<text class="buddy-modal-title">取消完成</text>
+				<view class="batch-result-row">
+					<text class="batch-result-text cancel-result-text">取消了 {{ cancelResult.days }} 天，扣回 {{ cancelResult.coins }}</text>
+					<GameIcon icon="coin" :size="30" :ml="4" />
+				</view>
+				<view class="buddy-btn buddy-btn-main buddy-modal-btn" @click="closeCancelResult">
+					<text class="buddy-btn-text-inverse">好的</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { checkins, refreshStore } from '@/common/store.uts'
+	import GameIcon from '@/components/game-icon/game-icon.uvue'
+	import {
+		buildCalendarCells,
+		buildMonthStats,
+		findCheckin
+	} from '@/common/game.uts'
+	import {
+		todayStr,
+		nowIso,
+		monthLabel,
+		monthFirstDay,
+		parseDate,
+		addDays,
+		shortDate,
+		weekdayLabel,
+		dayTypeName,
+		isTrainingDate,
+		coinForDate
+	} from '@/common/date.uts'
+	import { performCheckin, batchMakeup, cancelCheckin, batchCancel } from '@/common/repository.uts'
+	import { CalendarCell, MakeupSummary, CancelSummary, MonthStats } from '@/common/types.uts'
+
+	const now = new Date()
+	const year = ref(now.getFullYear())
+	const month = ref(now.getMonth() + 1)
+	const today = ref(todayStr())
+	const selected = ref(todayStr())
+	const showBatch = ref(false)
+	const startDate = ref('')
+	const endDate = ref('')
+	const showBatchResult = ref(false)
+	const batchResult = ref<MakeupSummary>(new MakeupSummary())
+	const showBatchCancel = ref(false)
+	const cancelStartDate = ref('')
+	const cancelEndDate = ref('')
+	const showCancelResult = ref(false)
+	const cancelResult = ref<CancelSummary>(new CancelSummary())
+	const showCancelConfirm = ref(false)
+	const pendingCancelDate = ref('')
+
+	const weekdayNames: string[] = ['日', '一', '二', '三', '四', '五', '六']
+
+	const cells = computed((): CalendarCell[] => {
+		return buildCalendarCells(year.value, month.value, checkins.value, selected.value, today.value)
+	})
+
+	const stats = computed((): MonthStats => {
+		return buildMonthStats(checkins.value, year.value, month.value)
+	})
+
+	const monthTitle = computed((): string => {
+		return monthLabel(year.value, month.value)
+	})
+
+	const dayTitle = computed((): string => {
+		return `${shortDate(selected.value)} ${weekdayLabel(selected.value)} · ${dayTypeName(selected.value)}`
+	})
+
+	const dayStatus = computed((): string => {
+		const record = findCheckin(checkins.value, selected.value)
+		if (record != null) {
+			if (record.type == 'makeup') {
+				return '✏️ 已补卡'
+			}
+			if (isTrainingDate(selected.value)) {
+				return '✅ 已打卡'
+			}
+			return '〰️ 已休息打卡'
+		}
+		if (selected.value > today.value) {
+			return '未来日期'
+		}
+		if (isTrainingDate(selected.value)) {
+			return '❌ 未打卡'
+		}
+		return '休息日未打卡'
+	})
+
+	const dayCoin = computed((): number => {
+		const record = findCheckin(checkins.value, selected.value)
+		if (record == null) {
+			return 0
+		}
+		return record.coinEarned
+	})
+
+	const canMakeup = computed((): boolean => {
+		if (selected.value > today.value) {
+			return false
+		}
+		return findCheckin(checkins.value, selected.value) == null
+	})
+
+	const canCancel = computed((): boolean => {
+		if (selected.value > today.value) {
+			return false
+		}
+		return findCheckin(checkins.value, selected.value) != null
+	})
+
+	const singleMakeupLabel = computed((): string => {
+		return `单日补卡 +${coinForDate(selected.value)}`
+	})
+
+	function cellExtra(cell: CalendarCell): string {
+		let s = ''
+		if (cell.empty) {
+			s = s + ' cal-empty'
+		}
+		if (cell.isToday) {
+			s = s + ' cal-today'
+		}
+		if (cell.isSelected) {
+			s = s + ' cal-selected'
+		}
+		if (cell.isFuture) {
+			s = s + ' cal-future'
+		}
+		return s
+	}
+
+	function onSelect(cell: CalendarCell): void {
+		if (cell.empty || cell.isFuture) {
+			return
+		}
+		selected.value = cell.dateStr
+	}
+
+	function prevMonth(): void {
+		if (month.value == 1) {
+			month.value = 12
+			year.value = year.value - 1
+		} else {
+			month.value = month.value - 1
+		}
+	}
+
+	function nextMonth(): void {
+		if (month.value == 12) {
+			month.value = 1
+			year.value = year.value + 1
+		} else {
+			month.value = month.value + 1
+		}
+	}
+
+	function onSingleMakeup(): void {
+		const out = performCheckin(selected.value, 'makeup', nowIso())
+		if (!out.ok) {
+			uni.showToast({ title: out.reason, icon: 'none' })
+			return
+		}
+		refreshStore()
+		uni.showToast({ title: `+${out.total} 活力币`, icon: 'none' })
+	}
+
+	function onSingleCancel(): void {
+		if (!canCancel.value) {
+			return
+		}
+		pendingCancelDate.value = selected.value
+		showCancelConfirm.value = true
+	}
+
+	function closeCancelConfirm(): void {
+		showCancelConfirm.value = false
+		pendingCancelDate.value = ''
+	}
+
+	function confirmSingleCancel(): void {
+		const dateStr = pendingCancelDate.value
+		showCancelConfirm.value = false
+		if (dateStr == '') {
+			return
+		}
+		const out = cancelCheckin(dateStr)
+		pendingCancelDate.value = ''
+		if (!out.ok) {
+			uni.showToast({ title: out.reason, icon: 'none' })
+			return
+		}
+		refreshStore()
+		const title = out.coins > 0 ? `已取消，扣回 ${out.coins} 活力币` : '已取消打卡'
+		uni.showToast({ title: title, icon: 'none' })
+	}
+
+	function openBatch(): void {
+		// 默认范围固定为「本月 1 日 ~ 昨天」，与当前浏览月份无关
+		const yesterday = addDays(today.value, -1)
+		const todayDate = parseDate(today.value)
+		let start = monthFirstDay(todayDate.getFullYear(), todayDate.getMonth() + 1)
+		if (start > yesterday) {
+			start = yesterday
+		}
+		startDate.value = start
+		endDate.value = yesterday
+		showBatch.value = true
+	}
+
+	function onStartChange(e: UniPickerChangeEvent): void {
+		startDate.value = e.detail.value
+	}
+
+	function onEndChange(e: UniPickerChangeEvent): void {
+		endDate.value = e.detail.value
+	}
+
+	function onBatchConfirm(): void {
+		const clamped = endDate.value > today.value
+		const out = batchMakeup(startDate.value, endDate.value)
+		if (!out.ok) {
+			uni.showToast({ title: out.reason, icon: 'none' })
+			return
+		}
+		batchResult.value = out
+		showBatch.value = false
+		showBatchResult.value = true
+		if (clamped) {
+			uni.showToast({ title: '已截断到今天', icon: 'none' })
+		}
+		refreshStore()
+	}
+
+	function closeBatch(): void {
+		showBatch.value = false
+	}
+
+	function closeBatchResult(): void {
+		showBatchResult.value = false
+		refreshStore()
+	}
+
+	function openBatchCancel(): void {
+		const yesterday = addDays(today.value, -1)
+		const todayDate = parseDate(today.value)
+		let start = monthFirstDay(todayDate.getFullYear(), todayDate.getMonth() + 1)
+		if (start > yesterday) {
+			start = yesterday
+		}
+		cancelStartDate.value = start
+		cancelEndDate.value = yesterday
+		showBatchCancel.value = true
+	}
+
+	function onCancelStartChange(e: UniPickerChangeEvent): void {
+		cancelStartDate.value = e.detail.value
+	}
+
+	function onCancelEndChange(e: UniPickerChangeEvent): void {
+		cancelEndDate.value = e.detail.value
+	}
+
+	function onBatchCancelConfirm(): void {
+		const out = batchCancel(cancelStartDate.value, cancelEndDate.value)
+		if (!out.ok) {
+			uni.showToast({ title: out.reason, icon: 'none' })
+			return
+		}
+		cancelResult.value = out
+		showBatchCancel.value = false
+		showCancelResult.value = true
+		refreshStore()
+	}
+
+	function closeBatchCancel(): void {
+		showBatchCancel.value = false
+	}
+
+	function closeCancelResult(): void {
+		showCancelResult.value = false
+		refreshStore()
+	}
+
+	onShow(() => {
+		today.value = todayStr()
+		refreshStore()
+	})
+</script>
+
+<style lang="scss" scoped>
+	.calendar-page {
+		flex: 1;
+		padding: 20rpx 24rpx 40rpx 24rpx;
+	}
+
+	.month-card {
+		padding: 18rpx 16rpx 22rpx 16rpx;
+	}
+
+	.month-nav {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-left: 10rpx;
+		padding-right: 10rpx;
+	}
+
+	.month-arrow {
+		width: 64rpx;
+		height: 64rpx;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.month-arrow-text {
+		font-size: 44rpx;
+		color: var(--color-ink);
+	}
+
+	.month-title {
+		font-size: 32rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+	}
+
+	.week-header {
+		flex-direction: row;
+		margin-top: 12rpx;
+	}
+
+	.week-head-text {
+		width: 14.28%;
+		text-align: center;
+		font-size: 22rpx;
+		color: var(--color-muted);
+		padding-top: 8rpx;
+		padding-bottom: 8rpx;
+	}
+
+	.cal-grid {
+		flex-direction: row;
+		flex-wrap: wrap;
+		margin-top: 4rpx;
+	}
+
+	.cal-cell {
+		width: 14.28%;
+		height: 94rpx;
+		align-items: center;
+		justify-content: center;
+		border-radius: 6rpx;
+	}
+
+	.cal-empty {
+		opacity: 0;
+	}
+
+	.cal-future {
+		opacity: 0.32;
+	}
+
+	.cal-today {
+		border: 3rpx solid var(--color-primary);
+	}
+
+	.cal-selected {
+		background-color: var(--color-primary-soft);
+	}
+
+	.cal-day {
+		font-size: 25rpx;
+		color: var(--color-ink);
+	}
+
+	.cal-status {
+		font-size: 17rpx;
+		margin-top: 2rpx;
+	}
+
+	.batch-row {
+		flex-direction: row;
+		margin-top: 20rpx;
+	}
+
+	.batch-btn {
+		flex: 1;
+		height: 76rpx;
+	}
+
+	.batch-btn-left {
+		margin-right: 10rpx;
+	}
+
+	.batch-btn-right {
+		margin-left: 10rpx;
+	}
+
+	.detail-card {
+		margin-top: 20rpx;
+		padding: 22rpx 24rpx;
+	}
+
+	.detail-title {
+		font-size: 28rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+	}
+
+	.detail-status-row {
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+		margin-top: 12rpx;
+	}
+
+	.detail-status {
+		font-size: 24rpx;
+		color: var(--color-muted);
+	}
+
+	.detail-coin {
+		flex-direction: row;
+		align-items: center;
+		margin-left: 8rpx;
+	}
+
+	.detail-coin-text {
+		font-size: 24rpx;
+		font-weight: bold;
+		color: var(--color-coin);
+	}
+
+	.makeup-label {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.detail-actions {
+		flex-direction: row;
+		flex-wrap: wrap;
+		margin-top: 16rpx;
+	}
+
+	.detail-btn {
+		margin-right: 12rpx;
+	}
+
+	.detail-cancel-btn {
+		border-color: var(--color-danger);
+	}
+
+	.detail-cancel-text {
+		font-size: 23rpx;
+		color: var(--color-danger);
+	}
+
+	.month-stats-row {
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		margin-top: 20rpx;
+	}
+
+	.month-stats {
+		font-size: 22rpx;
+		color: var(--color-muted);
+	}
+
+	/* 补卡/取消弹框 */
+	.batch-hint {
+		font-size: 22rpx;
+		line-height: 1.6;
+		color: var(--color-muted);
+		text-align: center;
+		margin-top: 14rpx;
+	}
+
+	.date-row {
+		width: 100%;
+		flex-direction: row;
+		align-items: center;
+		margin-top: 22rpx;
+	}
+
+	.date-label {
+		width: 140rpx;
+		font-size: 26rpx;
+		color: var(--color-ink);
+	}
+
+	.date-picker {
+		flex: 1;
+	}
+
+	.date-field {
+		height: 76rpx;
+		align-items: center;
+		padding-left: 18rpx;
+		padding-right: 18rpx;
+		border: 3rpx solid var(--color-line);
+		border-radius: 6rpx;
+		background-color: var(--color-paper-2);
+	}
+
+	.date-text {
+		font-size: 26rpx;
+		color: var(--color-ink);
+	}
+
+	.batch-actions {
+		width: 100%;
+		flex-direction: row;
+		margin-top: 28rpx;
+	}
+
+	.batch-cancel {
+		flex: 1;
+		margin-right: 10rpx;
+	}
+
+	.batch-confirm {
+		flex: 1;
+		margin-left: 10rpx;
+	}
+
+	.batch-result-row {
+		flex-direction: row;
+		align-items: center;
+		margin-top: 22rpx;
+	}
+
+	.batch-result-text {
+		font-size: 30rpx;
+		color: var(--color-coin);
+	}
+
+	.cancel-result-text {
+		color: var(--color-danger);
+	}
+</style>

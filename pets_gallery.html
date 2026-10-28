@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>宠物图鉴 · idle 帧画廊（26 只）</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+         background: #f5f6f8; color: #222; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .sub { color: #666; font-size: 13px; margin-bottom: 16px; }
+  details.legend { background: #fff; border: 1px solid #ddd; border-radius: 8px;
+                    padding: 8px 14px; margin-bottom: 20px; font-size: 13px; }
+  details.legend table { border-collapse: collapse; margin: 8px 0; }
+  details.legend td { border: 1px solid #e3e3e3; padding: 3px 10px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+  .card { background: #fff; border: 1px solid #ddd; border-radius: 10px; overflow: hidden;
+           display: flex; flex-direction: column; }
+  .sprite { width: 192px; height: 208px; margin: 8px auto 0; flex: none;
+             background-size: 1536px 1872px; background-position: 0 0; background-repeat: no-repeat;
+             animation: idle 0.9s steps(6) infinite; image-rendering: auto;
+             border-radius: 8px; }
+  .card:hover .sprite { animation-play-state: paused; }
+  @keyframes idle { from { background-position: 0 0; } to { background-position: -1152px 0; } }
+  .meta { padding: 8px 12px 12px; }
+  .name { font-weight: 600; font-size: 15px; display: flex; justify-content: space-between;
+           align-items: baseline; margin-bottom: 6px; }
+  .name .id { font-weight: 400; font-size: 11px; color: #999; font-family: Consolas, monospace; }
+  pre { margin: 0; font-size: 11px; line-height: 1.45; font-family: Consolas, "Courier New", monospace;
+         background: #fafbfc; border: 1px solid #eee; border-radius: 6px; padding: 8px;
+         white-space: pre-wrap; word-break: break-word; color: #444; }
+  .hint { font-size: 12px; color: #888; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+  <h1>宠物图鉴 · idle 帧画廊</h1>
+  <div class="sub">共 26 只素材 · spritesheet 1536×1872（8 列 × 9 行，单元格 192×208）· 每卡片循环播放第 0 行 idle 的 6 帧</div>
+  <div class="hint">鼠标悬停卡片可暂停动画逐帧观察；下方为各宠物 pet.json 的完整内容（description 已译为中文）。</div>
+  <details class="legend">
+    <summary>spritesheet 行布局（状态 / 帧数 / 说明）</summary>
+    <table>
+      <tr><td>idle 怠速</td><td>6</td><td>待机呼吸循环 — 微微呼吸、眨眼</td></tr>
+      <tr><td>running-right 向右奔跑</td><td>8</td><td>向右移动</td></tr>
+      <tr><td>running-left 向左奔跑</td><td>8</td><td>向左移动（自动镜像）</td></tr>
+      <tr><td>waving 挥手</td><td>4</td><td>挥手打招呼</td></tr>
+      <tr><td>jumping 跳跃</td><td>5</td><td>跳跃弧线：蓄力 → 腾空 → 落地</td></tr>
+      <tr><td>failed 失败了</td><td>8</td><td>失败/沮丧反应</td></tr>
+      <tr><td>waiting 等待</td><td>6</td><td>等待用户输入</td></tr>
+      <tr><td>running 跑步</td><td>6</td><td>工作/处理中（非跑步）</td></tr>
+      <tr><td>review 影评</td><td>6</td><td>检查完成的输出</td></tr>
+    </table>
+  </details>
+  <div class="grid">
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/aileen/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">艾琳<span class="id">aileen</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;aileen&quot;,
+  &quot;displayName&quot;: &quot;艾琳&quot;,
+  &quot;description&quot;: &quot;可爱的Q版奇幻精灵弓箭手桌面宠物，金发碧眼、半透明翅膀、头戴月桂花冠，手持发光的金色长弓。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/anya-2/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">阿尼亚<span class="id">anya-2</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;anya&quot;,
+  &quot;displayName&quot;: &quot;阿尼亚&quot;,
+  &quot;description&quot;: &quot;《间谍过家家》阿尼亚·福杰的 Codex 风格电子宠物。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/aoyin/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">敖隐<span class="id">aoyin</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;aoyin&quot;,
+  &quot;displayName&quot;: &quot;敖隐&quot;,
+  &quot;description&quot;: &quot;以敖隐为灵感的迷你 Codex 伙伴，身着白蓝长袍，施展水龙魔法。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/bee-teemo/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">提莫<span class="id">bee-teemo</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;bee-teemo&quot;,
+  &quot;displayName&quot;: &quot;提莫&quot;,
+  &quot;description&quot;: &quot;Codex 宠物风格的蜜蜂皮肤提莫，跳着 Badgers 舞步。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/doro/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">Doro<span class="id">doro</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;doro&quot;,
+  &quot;displayName&quot;: &quot;Doro&quot;,
+  &quot;description&quot;: &quot;小巧的白色Q版宠物，粉色头发、紫色眼睛，头侧别着玫瑰蝴蝶结。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;,
+  &quot;kind&quot;: &quot;creature&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/doubao-2/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">豆包<span class="id">doubao-2</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;doubao&quot;,
+  &quot;displayName&quot;: &quot;豆包&quot;,
+  &quot;description&quot;: &quot;以提供的头像为灵感打造的亲切 Codex 宠物：侧分深色波波头的Q版少女，棕色大眼睛，面容柔和，身穿简约黑色上衣。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/ema/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">Ema<span class="id">ema</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;ema&quot;,
+  &quot;displayName&quot;: &quot;Ema&quot;,
+  &quot;description&quot;: &quot;温柔的白花校服少女伙伴，白发点缀粉色。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/feibi/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">feibi<span class="id">feibi</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;feibi&quot;,
+  &quot;displayName&quot;: &quot;feibi&quot;,
+  &quot;description&quot;: &quot;一位可爱的少女。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/gameboy/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">电玩小子<span class="id">gameboy</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;gameboy&quot;,
+  &quot;displayName&quot;: &quot;电玩小子&quot;,
+  &quot;description&quot;: &quot;王者荣耀电玩小子——大头短腿的机械街机男孩，红蓝街机配色，戴护目镜，配有玩具火箭筒、游戏按键、像素方块和机械背包。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/guga/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">咕嘎<span class="id">guga</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;guga&quot;,
+  &quot;displayName&quot;: &quot;咕嘎&quot;,
+  &quot;description&quot;: &quot;更圆润可爱的Q版企鹅卫衣女孩宠物，脸庞更柔和，比例更亲切。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/hutao/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">胡桃<span class="id">hutao</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;hutao&quot;,
+  &quot;displayName&quot;: &quot;胡桃&quot;,
+  &quot;description&quot;: &quot;胡桃是《原神》中的五星火元素角色，使用长柄武器，是璃月「往生堂」第七十七代堂主。她性格古灵精怪、活泼俏皮，喜欢作诗和恶作剧，但对生死有着成熟豁达的理解。外形以黑红服饰、礼帽和梅花装饰为特色，神秘又可爱。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;,
+  &quot;kind&quot;: &quot;person&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/jinx/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">金克丝<span class="id">jinx</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;jinx&quot;,
+  &quot;displayName&quot;: &quot;金克丝&quot;,
+  &quot;description&quot;: &quot;Codex 宠物风格的金克丝，跳着灵感源自 Jake 的弹簧循环舞步。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/jiyi/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">吉伊<span class="id">jiyi</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;jiyi&quot;,
+  &quot;displayName&quot;: &quot;吉伊&quot;,
+  &quot;description&quot;: &quot;圆润的白色Q版小熊，深巧克力色描边、粉色脸颊、小短四肢、卷耳朵，背着粉色小熊挎包。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/kaka-dawang/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">卡卡大王<span class="id">kaka-dawang</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;kaka-dawang&quot;,
+  &quot;displayName&quot;: &quot;卡卡大王&quot;,
+  &quot;description&quot;: &quot;手拿小夹板的迷你 Codex 风格电子宠物伙伴。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/kitmar/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">喜多川海梦<span class="id">kitmar</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;kitmar&quot;,
+  &quot;displayName&quot;: &quot;喜多川海梦&quot;,
+  &quot;description&quot;: &quot;以喜多川海梦为灵感的开朗迷人电子伙伴。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/libai/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">李白<span class="id">libai</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;libai&quot;,
+  &quot;displayName&quot;: &quot;李白&quot;,
+  &quot;description&quot;: &quot;一只白衣红纹、持剑带酒葫芦的 Q 版剑仙 Codex 宠物。.&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/lumi-lock/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">LumiLock<span class="id">lumi-lock</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;lumi-lock&quot;,
+  &quot;displayName&quot;: &quot;LumiLock&quot;,
+  &quot;description&quot;: &quot;迷你粉彩偶像伙伴，贴近原始参考形象：蓬松粉发渐变为淡白，蓝紫色大眼睛，皮肤白皙，笑容柔和俏皮；黑色小娃娃造型刘海发饰，猫耳样白粉蝴蝶结，白色绒毛滚边，白粉配色服装点缀黑色丝带与蓝色宝石，亮红手套、链条装饰和深色小毛绒挂件。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/momo/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">Momo<span class="id">momo</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;momo&quot;,
+  &quot;displayName&quot;: &quot;Momo&quot;,
+  &quot;description&quot;: &quot;为 Codex 应用打造的萌系Q版小女孩宠物，戴着可爱的帽子。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/pan-chan/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">Pan-chan<span class="id">pan-chan</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;pan-chan&quot;,
+  &quot;displayName&quot;: &quot;Pan-chan&quot;,
+  &quot;description&quot;: &quot;小盼是一只毛茸茸的熊猫玩偶，也是你的新朋友。小巧、柔软，时刻陪伴在你身边。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/pearl-idol/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">萨勒芬妮Q版<span class="id">pearl-idol</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;pearl-idol&quot;,
+  &quot;displayName&quot;: &quot;萨勒芬妮Q版&quot;,
+  &quot;description&quot;: &quot;LOL萨勒芬妮Q版形象，基于提供的水下角色参考设计。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/pumpkin/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">pumpkin<span class="id">pumpkin</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;pumpkin&quot;,
+  &quot;displayName&quot;: &quot;pumpkin&quot;,
+  &quot;description&quot;: &quot;开朗的卡通Q版宠物“南瓜”，灵感来自身穿飘逸天蓝色连衣裙的金发乐天少女。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/snow-plum-lillia/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">莉莉娅<span class="id">snow-plum-lillia</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;snow-plum-lillia&quot;,
+  &quot;displayName&quot;: &quot;莉莉娅&quot;,
+  &quot;description&quot;: &quot;雪梅莉莉娅 Codex 宠物，已修复动作连贯性：镜像左跑时序、稳定失败/等待/工作中循环、更清晰的跳跃弧线，并清理了色键边缘。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;,
+  &quot;version&quot;: &quot;1.1.0&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/tide-muse/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">萨勒芬妮<span class="id">tide-muse</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;tide-muse&quot;,
+  &quot;displayName&quot;: &quot;萨勒芬妮&quot;,
+  &quot;description&quot;: &quot;基于提供的水下角色参考打造的优雅海洋精灵伙伴。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/usagi/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">乌萨奇<span class="id">usagi</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;usagi&quot;,
+  &quot;displayName&quot;: &quot;乌萨奇&quot;,
+  &quot;description&quot;: &quot;圆润的奶油色兔子桌面宠物，竖着长耳朵，脸颊泛红，小爪子，配上可爱的猫形小嘴。&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;,
+  &quot;kind&quot;: &quot;creature&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/yy/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">源源<span class="id">yy</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;yy&quot;,
+  &quot;displayName&quot;: &quot;源源&quot;,
+  &quot;description&quot;: &quot;可爱源源在线干活&quot;,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sprite" style="background-image:url('static/pets/blue-whale-maid-main/blue-whale-maid-main/final/spritesheet.webp')"></div>
+      <div class="meta">
+        <div class="name">蓝色大肥鱼<span class="id">blue-whale-maid</span></div>
+        <pre>{
+  &quot;id&quot;: &quot;blue-whale-maid&quot;,
+  &quot;displayName&quot;: &quot;蓝色大肥鱼&quot;,
+  &quot;description&quot;: &quot;一只蓝发鲸尾女仆风格的Q版宠物，待机时趴着轻轻吐泡泡。&quot;,
+  &quot;spriteVersionNumber&quot;: 2,
+  &quot;spritesheetPath&quot;: &quot;spritesheet.webp&quot;
+}</pre>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

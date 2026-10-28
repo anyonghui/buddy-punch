@@ -1,0 +1,155 @@
+<template>
+	<view v-if="petKey != ''" class="sprite-box" :style="{ width: boxW, height: boxH }">
+		<image class="sprite-img" :src="src" mode="scaleToFill" :style="{ width: atlasW, height: atlasH, left: leftOff, top: topOff }"></image>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { AnimDef } from '@/common/types.uts'
+	import { getAnim, ATLAS_COLS, CELL_W, CELL_H } from '@/common/pet-anim.uts'
+	import { findMeta, petSpritePath } from '@/common/pet-catalog.uts'
+
+	const props = defineProps({
+		petKey: {
+			type: String,
+			default: ''
+		},
+		state: {
+			type: String,
+			default: 'idle'
+		},
+		// 展示高度（rpx），宽度按单帧 192:208 等比换算
+		height: {
+			type: Number,
+			default: 200
+		},
+		// false 时只显示首帧静态图（列表场景），减少定时器开销
+		playing: {
+			type: Boolean,
+			default: true
+		},
+		// 帧播放减速倍数：1 = 原速，1.5 = 慢 1.5 倍
+		speed: {
+			type: Number,
+			default: 1
+		},
+		// 递增即从第 0 帧重播（同一动作重复触发时使用）
+		restart: {
+			type: Number,
+			default: 0
+		}
+	})
+
+	const frame = ref(0)
+	let timer: number = -1
+	let lastState: string = ''
+	let lastRestart: number = 0
+	let lastTick: number = 0
+
+	const src = computed((): string => {
+		return petSpritePath(props.petKey)
+	})
+
+	const rows = computed((): number => {
+		const meta = findMeta(props.petKey)
+		return meta == null ? 9 : meta.rows
+	})
+
+	const frameW = computed((): number => {
+		return Math.round(props.height * CELL_W / CELL_H)
+	})
+
+	const anim = computed((): AnimDef => {
+		return getAnim(props.state)
+	})
+
+	const boxW = computed((): string => {
+		return `${frameW.value}rpx`
+	})
+
+	const boxH = computed((): string => {
+		return `${props.height}rpx`
+	})
+
+	const atlasW = computed((): string => {
+		return `${frameW.value * ATLAS_COLS}rpx`
+	})
+
+	const atlasH = computed((): string => {
+		return `${rows.value * props.height}rpx`
+	})
+
+	const leftOff = computed((): string => {
+		return `-${frame.value * frameW.value}rpx`
+	})
+
+	const topOff = computed((): string => {
+		return `-${anim.value.row * props.height}rpx`
+	})
+
+	function tick(): void {
+		const now = Date.now()
+		const def = getAnim(props.state)
+		// 同一动作重复触发：从第 0 帧重播
+		if (props.restart != lastRestart) {
+			lastRestart = props.restart
+			lastState = props.state
+			frame.value = 0
+			lastTick = now
+			return
+		}
+		if (props.state != lastState) {
+			lastState = props.state
+			frame.value = 0
+			lastTick = now
+			return
+		}
+		if (!props.playing) {
+			return
+		}
+		const speed = props.speed > 0 ? props.speed : 1
+		const frameDuration = 1000 / def.fps * speed
+		const elapsed = now - lastTick
+		if (elapsed >= frameDuration) {
+			const advance = Math.max(1, Math.floor(elapsed / frameDuration))
+			const next = frame.value + advance
+			if (def.loop) {
+				frame.value = next % def.frames
+			} else {
+				frame.value = Math.min(next, def.frames - 1)
+			}
+			// 保留余数，避免长时间播放产生累积漂移
+			lastTick = now - (elapsed % frameDuration)
+		}
+	}
+
+	onMounted(() => {
+		lastState = props.state
+		lastRestart = props.restart
+		lastTick = Date.now()
+		frame.value = 0
+		if (props.playing) {
+			timer = setInterval(() => {
+				tick()
+			}, 50)
+		}
+	})
+
+	onUnmounted(() => {
+		if (timer != -1) {
+			clearInterval(timer)
+			timer = -1
+		}
+	})
+</script>
+
+<style lang="scss" scoped>
+	.sprite-box {
+		position: relative;
+		overflow: hidden;
+	}
+
+	.sprite-img {
+		position: absolute;
+	}
+</style>

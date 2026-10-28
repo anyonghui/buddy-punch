@@ -1,0 +1,152 @@
+<template>
+	<view class="chat-list-page buddy-page paper-texture">
+		<scroll-view class="page-scroll" scroll-y>
+			<view v-if="!aiConfigured" class="ai-tip" @click="goMine">
+				<text class="ai-tip-text">⚠ 未配置 AI，去设置</text>
+			</view>
+
+			<view v-if="rows.length > 0" class="chat-list">
+				<view v-for="(row, index) in rows" :key="row.petId" class="chat-row" :class="(!aiConfigured ? 'chat-row-gray ' : '') + (index == 0 ? 'chat-row-first' : '')" @click="goRoom(row)">
+					<view class="row-avatar">
+						<PetSprite :petKey="row.petKey" :state="wilting ? 'failed' : 'idle'" :height="100" :playing="false" />
+					</view>
+					<view class="row-body">
+						<view class="row-top">
+							<text class="row-name">{{ row.name }}</text>
+							<text class="row-time">{{ timeText(row.lastAt) }}</text>
+						</view>
+						<text class="row-last">{{ row.lastText }}</text>
+					</view>
+				</view>
+			</view>
+
+			<view v-else class="buddy-empty">
+				<text class="buddy-empty-icon">💬</text>
+				<text class="buddy-empty-text">养成成长值 50 + 消耗 4 本书解锁宠物对话</text>
+				<view class="buddy-btn buddy-btn-main empty-btn" @click="goPets">
+					<text class="buddy-btn-text-inverse">去宠物窝</text>
+				</view>
+			</view>
+		</scroll-view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import PetSprite from '@/components/pet-sprite/pet-sprite.uvue'
+	import { aiConfigured, wilting, refreshStore } from '@/common/store.uts'
+	import { buildChatRows } from '@/common/repository.uts'
+	import { ChatRow } from '@/common/types.uts'
+	import { chatTimeLabel } from '@/common/date.uts'
+
+	const rows = ref<ChatRow[]>([])
+
+	function loadRows(): void {
+		rows.value = buildChatRows()
+	}
+
+	function timeText(at: string): string {
+		return chatTimeLabel(at)
+	}
+
+	function goRoom(row: ChatRow): void {
+		uni.navigateTo({ url: `/pages/chat-room/chat-room?petId=${row.petId}` })
+	}
+
+	function goMine(): void {
+		uni.switchTab({ url: '/pages/mine/mine' })
+	}
+
+	function goPets(): void {
+		uni.switchTab({ url: '/pages/pets/pets' })
+	}
+
+	onShow(() => {
+		refreshStore()
+		loadRows()
+	})
+</script>
+
+<style lang="scss" scoped>
+	.chat-list-page {
+		flex: 1;
+		padding: 10rpx 24rpx 40rpx 24rpx;
+	}
+
+	.ai-tip {
+		height: 72rpx;
+		align-items: center;
+		justify-content: center;
+		margin-top: 16rpx;
+		margin-bottom: 8rpx;
+		border: 2rpx dashed var(--color-danger);
+		border-radius: 8rpx;
+		background-color: var(--color-danger-soft);
+	}
+
+	.ai-tip-text {
+		font-size: 24rpx;
+		color: var(--color-danger);
+	}
+
+	.chat-list {
+		margin-top: 8rpx;
+	}
+
+	.chat-row {
+		flex-direction: row;
+		align-items: center;
+		padding-top: 20rpx;
+		padding-bottom: 20rpx;
+		border-bottom: 2rpx solid var(--color-line-soft);
+	}
+
+	.chat-row-first {
+		padding-top: 6rpx;
+	}
+
+	.chat-row-gray {
+		opacity: 0.5;
+	}
+
+	.row-avatar {
+		width: 110rpx;
+		height: 104rpx;
+		align-items: center;
+		justify-content: flex-end;
+		margin-right: 18rpx;
+	}
+
+	.row-body {
+		flex: 1;
+	}
+
+	.row-top {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.row-name {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+	}
+
+	.row-time {
+		font-size: 22rpx;
+		color: var(--color-muted);
+	}
+
+	.row-last {
+		font-size: 24rpx;
+		color: var(--color-muted);
+		margin-top: 10rpx;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+
+	.empty-btn {
+		width: 300rpx;
+	}
+</style>

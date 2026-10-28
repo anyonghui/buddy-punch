@@ -1,0 +1,422 @@
+<template>
+	<view class="chat-room buddy-page paper-texture">
+		<scroll-view v-if="found && unlocked" class="message-list" scroll-y :scroll-into-view="scrollTarget">
+			<view v-if="messages.length == 0" class="msg-empty">
+				<text class="msg-empty-text">还没有聊过，打个招呼吧</text>
+			</view>
+
+			<view v-for="m in messages" :id="anchorOf(m.id)" :key="m.id" class="msg-wrap"
+				:class="m.senderRole == 'user' ? 'msg-wrap-user' : 'msg-wrap-pet'">
+				<view class="bubble" :class="bubbleClass(m)">
+					<text class="bubble-text">{{ m.content }}</text>
+				</view>
+				<view v-if="m.senderRole == 'user' && m.status == 'failed'" class="retry-row" @click="onRetry(m)">
+					<text class="retry-text">✕ 发送失败，点此重试</text>
+				</view>
+			</view>
+
+			<view v-if="sending" class="msg-wrap msg-wrap-pet">
+				<view class="bubble bubble-pet bubble-thinking">
+					<text class="bubble-text">正在想…</text>
+				</view>
+			</view>
+
+			<view class="list-tail" :style="{ marginBottom: keyboardOffset }"></view>
+		</scroll-view>
+
+		<view v-if="found && unlocked" class="input-bar" :style="{ bottom: keyboardOffset }">
+			<view class="input-pet" @click="onPetTap">
+				<PetSprite v-if="petKey != ''" :petKey="petKey" :state="inputDisplayState" :height="72" :playing="true" />
+			</view>
+			<input class="chat-input" v-model="draft" :placeholder="inputPlaceholder" confirm-type="send" :adjust-position="false"
+				@confirm="onSend" @blur="onInputBlur" @keyboardheightchange="onInputKeyboardChange" />
+			<view class="send-btn" :class="sending ? 'send-btn-disabled' : 'send-btn-on'" @click="onSend">
+				<text class="send-btn-text" :class="sending ? 'send-btn-text-disabled' : ''">发送</text>
+			</view>
+		</view>
+
+		<view v-if="!found" class="buddy-empty">
+			<text class="buddy-empty-icon">💬</text>
+			<text class="buddy-empty-text">找不到这只宠物</text>
+		</view>
+		<view v-else-if="!unlocked" class="buddy-empty">
+			<text class="buddy-empty-icon">🔒</text>
+			<text class="buddy-empty-text">这只宠物还没有解锁对话</text>
+			<view class="buddy-btn buddy-btn-main empty-btn" @click="goPets">
+				<text class="buddy-btn-text-inverse">去宠物窝</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import PetSprite from '@/components/pet-sprite/pet-sprite.uvue'
+	import { aiConfigured, wilting, settings, refreshStore } from '@/common/store.uts'
+	import {
+		getPetById,
+		getChatMessages,
+		addChatMessage,
+		updateChatMessageStatus,
+		getChatHistory
+	} from '@/common/repository.uts'
+	import { ChatMessage, ChatTurn } from '@/common/types.uts'
+	import { getPersona } from '@/common/persona.uts'
+	import { requestChat } from '@/common/ai.uts'
+
+	const petId = ref(-1)
+	const found = ref(false)
+	const unlocked = ref(false)
+	const petKey = ref('')
+	const petName = ref('')
+	const messages = ref<ChatMessage[]>([])
+	const draft = ref('')
+	const sending = ref(false)
+	const interactState = ref('')
+	const scrollTarget = ref('')
+	// 软键盘遮挡高度：底部输入区上移、消息流补白共用
+	const keyboardOffset = ref('0px')
+
+	let interactTimer = -1
+	let lastTapAt = 0
+
+	const inputPlaceholder = computed((): string => {
+		return aiConfigured.value ? '说点什么…' : '未配置 AI，去我的-设置'
+	})
+
+	const inputDisplayState = computed((): string => {
+		if (sending.value) {
+			return 'waiting'
+		}
+		if (interactState.value != '') {
+			return interactState.value
+		}
+		if (wilting.value) {
+			return 'failed'
+		}
+		return 'idle'
+	})
+
+	function anchorOf(id: number): string {
+		return `msg-${id}`
+	}
+
+	function bubbleClass(m: ChatMessage): string {
+		if (m.senderRole == 'user') {
+			if (m.status == 'failed') {
+				return 'bubble-user bubble-failed'
+			}
+			return 'bubble-user'
+		}
+		return 'bubble-pet'
+	}
+
+	function loadPet(): void {
+		const p = getPetById(petId.value)
+		if (p == null) {
+			found.value = false
+			return
+		}
+		found.value = true
+		unlocked.value = p.chatUnlocked
+		petKey.value = p.petKey
+		petName.value = p.name
+		uni.setNavigationBarTitle({ title: p.name })
+	}
+
+	function loadMessages(): void {
+		const list = getChatMessages(petId.value)
+		messages.value = list
+		if (list.length > 0) {
+			scrollTarget.value = anchorOf(list[list.length - 1].id)
+		} else {
+			scrollTarget.value = ''
+		}
+	}
+
+	function clearInteractTimer(): void {
+		if (interactTimer != -1) {
+			clearTimeout(interactTimer)
+			interactTimer = -1
+		}
+	}
+
+	function playState(state: string, ms: number): void {
+		interactState.value = state
+		clearInteractTimer()
+		interactTimer = setTimeout(() => {
+			interactState.value = ''
+			interactTimer = -1
+		}, ms)
+	}
+
+	function onPetTap(): void {
+		if (sending.value || wilting.value) {
+			return
+		}
+		const now = Date.now()
+		if (now - lastTapAt < 1000) {
+			return
+		}
+		lastTapAt = now
+		playState(Math.random() < 0.5 ? 'wave' : 'jump', 1100)
+	}
+
+	// 输入框已关闭默认上推（adjust-position=false），由键盘高度手动顶起输入区
+	function onInputKeyboardChange(e: UniInputKeyboardHeightChangeEvent): void {
+		const height = e.detail.height
+		keyboardOffset.value = `${height > 0 ? height : 0}px`
+	}
+
+	function onInputBlur(): void {
+		keyboardOffset.value = '0px'
+	}
+
+	function sendReply(messageId: number, text: string): void {
+		sending.value = true
+		const pet = getPetById(petId.value)
+		if (pet == null) {
+			sending.value = false
+			updateChatMessageStatus(messageId, 'failed')
+			loadMessages()
+			return
+		}
+		getPersona(pet.petKey, pet.name, (persona: string) => {
+			const rows = getChatHistory(petId.value, messageId - 1)
+			const history: ChatTurn[] = []
+			for (let i = 0; i < rows.length; i++) {
+				if (rows[i].status == 'failed') {
+					continue
+				}
+				history.push(new ChatTurn(rows[i].senderRole, rows[i].content))
+			}
+			const apiKey = settings.value.apiKey
+			const apiBase = settings.value.apiBase
+			const apiModel = settings.value.apiModel
+			let systemPrompt = persona
+			if (wilting.value) {
+				systemPrompt = systemPrompt + '\n\n补充状态：你最近连续几天没等到对方来运动，心情有点低落，语气可以蔫一点，但仍然正常陪聊。'
+			}
+			requestChat(apiKey, apiBase, apiModel, systemPrompt, history, text, (ok: boolean, reply: string) => {
+				sending.value = false
+				if (ok) {
+					updateChatMessageStatus(messageId, 'ok')
+					addChatMessage(petId.value, 'pet', reply, 'ok')
+					loadMessages()
+					playState('review', 1200)
+				} else {
+					updateChatMessageStatus(messageId, 'failed')
+					loadMessages()
+					uni.showToast({ title: reply, icon: 'none' })
+				}
+			})
+		})
+	}
+
+	function onSend(): void {
+		if (sending.value) {
+			return
+		}
+		const text = draft.value.trim()
+		if (text == '') {
+			return
+		}
+		if (!aiConfigured.value) {
+			uni.showToast({ title: '先去我的-设置配置 AI', icon: 'none' })
+			return
+		}
+		draft.value = ''
+		const msg = addChatMessage(petId.value, 'user', text, 'pending')
+		loadMessages()
+		sendReply(msg.id, text)
+	}
+
+	function onRetry(m: ChatMessage): void {
+		if (sending.value) {
+			return
+		}
+		if (!aiConfigured.value) {
+			uni.showToast({ title: '先去我的-设置配置 AI', icon: 'none' })
+			return
+		}
+		updateChatMessageStatus(m.id, 'pending')
+		loadMessages()
+		sendReply(m.id, m.content)
+	}
+
+	function goPets(): void {
+		uni.switchTab({ url: '/pages/pets/pets' })
+	}
+
+	onLoad((options: OnLoadOptions) => {
+		const raw = options['petId']
+		if (raw != null && raw != '') {
+			petId.value = parseInt(raw)
+		}
+	})
+
+	onShow(() => {
+		refreshStore()
+		loadPet()
+		loadMessages()
+	})
+
+	onHide(() => {
+		clearInteractTimer()
+		interactState.value = ''
+		keyboardOffset.value = '0px'
+	})
+
+	onUnload(() => {
+		clearInteractTimer()
+	})
+</script>
+
+<style lang="scss" scoped>
+	.chat-room {
+		flex: 1;
+		flex-direction: column;
+		height: 100%;
+	}
+
+	.message-list {
+		flex: 1;
+		height: 100%;
+		padding: 20rpx 24rpx 200rpx 24rpx;
+		box-sizing: border-box;
+	}
+
+	.msg-empty {
+		padding-top: 80rpx;
+		align-items: center;
+	}
+
+	.msg-empty-text {
+		font-size: 24rpx;
+		color: var(--color-muted);
+	}
+
+	.msg-wrap {
+		margin-bottom: 22rpx;
+	}
+
+	.msg-wrap-pet {
+		align-items: flex-start;
+	}
+
+	.msg-wrap-user {
+		align-items: flex-end;
+	}
+
+	.bubble {
+		max-width: 76%;
+		padding: 18rpx 22rpx;
+		border: 3rpx solid var(--color-line);
+		border-radius: 8rpx;
+	}
+
+	.bubble-pet {
+		background-color: var(--color-paper-2);
+	}
+
+	.bubble-user {
+		background-color: var(--color-primary-soft);
+	}
+
+	.bubble-failed {
+		border-color: var(--color-danger);
+		background-color: var(--color-danger-soft);
+	}
+
+	.bubble-thinking {
+		opacity: 0.8;
+	}
+
+	.bubble-text {
+		font-size: 27rpx;
+		line-height: 1.55;
+		color: var(--color-ink);
+	}
+
+	.retry-row {
+		margin-top: 8rpx;
+		padding: 6rpx 14rpx;
+		border: 2rpx solid var(--color-danger);
+		border-radius: 6rpx;
+		background-color: var(--color-danger-soft);
+	}
+
+	.retry-text {
+		font-size: 22rpx;
+		color: var(--color-danger);
+	}
+
+	.list-tail {
+		height: 30rpx;
+	}
+
+	/* 底部输入区 */
+	.input-bar {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		flex-direction: row;
+		align-items: center;
+		padding: 16rpx 20rpx 26rpx 20rpx;
+		background-color: var(--color-paper);
+		border-top: 2rpx solid var(--color-line-soft);
+	}
+
+	.input-pet {
+		width: 78rpx;
+		height: 86rpx;
+		align-items: center;
+		justify-content: flex-end;
+		margin-right: 10rpx;
+	}
+
+	.chat-input {
+		flex: 1;
+		height: 76rpx;
+		padding-left: 18rpx;
+		padding-right: 18rpx;
+		background-color: var(--color-paper-2);
+		border: 3rpx solid var(--color-line);
+		border-radius: 8rpx;
+		font-size: 26rpx;
+		color: var(--color-ink);
+	}
+
+	.send-btn {
+		width: 112rpx;
+		height: 76rpx;
+		margin-left: 14rpx;
+		align-items: center;
+		justify-content: center;
+		border: 3rpx solid var(--color-line);
+		border-radius: 8rpx;
+	}
+
+	.send-btn-on {
+		background-color: var(--color-primary);
+	}
+
+	.send-btn-disabled {
+		background-color: var(--color-line-soft);
+		border-color: var(--color-disabled);
+	}
+
+	.send-btn-text {
+		font-size: 26rpx;
+		font-weight: bold;
+		color: var(--color-paper-2);
+	}
+
+	.send-btn-text-disabled {
+		color: var(--color-disabled);
+	}
+
+	.empty-btn {
+		width: 300rpx;
+	}
+</style>

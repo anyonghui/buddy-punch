@@ -1,0 +1,150 @@
+import {
+	TRAIN_COIN_CARDIO,
+	TRAIN_COIN_STRENGTH,
+	REST_COIN
+} from './constants.uts'
+
+export function pad2(n: number): string {
+	if (n < 10) {
+		return `0${n}`
+	}
+	return `${n}`
+}
+
+export function formatDate(d: Date): string {
+	return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+}
+
+export function formatDateTime(d: Date): string {
+	return `${formatDate(d)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
+}
+
+export function todayStr(): string {
+	return formatDate(new Date())
+}
+
+export function nowIso(): string {
+	return formatDateTime(new Date())
+}
+
+export function parseDate(dateStr: string): Date {
+	const parts = dateStr.split('-')
+	if (parts.length < 3) {
+		return new Date()
+	}
+	const y = parseInt(parts[0])
+	const m = parseInt(parts[1])
+	const d = parseInt(parts[2])
+	return new Date(y, m - 1, d)
+}
+
+export function addDays(dateStr: string, n: number): string {
+	const d = parseDate(dateStr)
+	d.setDate(d.getDate() + n)
+	return formatDate(d)
+}
+
+// 周一=1 ... 周日=7
+export function weekdayNumber(dateStr: string): number {
+	const day = parseDate(dateStr).getDay()
+	if (day == 0) {
+		return 7
+	}
+	return day
+}
+
+export function weekdayLabel(dateStr: string): string {
+	const labels: string[] = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+	return labels[weekdayNumber(dateStr) - 1]
+}
+
+export function isStrengthDate(dateStr: string): boolean {
+	const w = weekdayNumber(dateStr)
+	return w == 1 || w == 3 || w == 5
+}
+
+export function isCardioDate(dateStr: string): boolean {
+	return weekdayNumber(dateStr) == 6
+}
+
+export function isTrainingDate(dateStr: string): boolean {
+	return isStrengthDate(dateStr) || isCardioDate(dateStr)
+}
+
+export function isRestDate(dateStr: string): boolean {
+	return !isTrainingDate(dateStr)
+}
+
+export function coinForDate(dateStr: string): number {
+	if (isStrengthDate(dateStr)) {
+		return TRAIN_COIN_STRENGTH
+	}
+	if (isCardioDate(dateStr)) {
+		return TRAIN_COIN_CARDIO
+	}
+	return REST_COIN
+}
+
+export function dayTypeName(dateStr: string): string {
+	if (isStrengthDate(dateStr)) {
+		return '力量训练日'
+	}
+	if (isCardioDate(dateStr)) {
+		return '有氧训练日'
+	}
+	return '休息日'
+}
+
+// 本周周一
+export function weekStartOf(dateStr: string): string {
+	return addDays(dateStr, -(weekdayNumber(dateStr) - 1))
+}
+
+export function monthFirstDay(year: number, month: number): string {
+	return `${year}-${pad2(month)}-01`
+}
+
+export function daysInMonth(year: number, month: number): number {
+	return new Date(year, month, 0).getDate()
+}
+
+// 当月 1 号是周几（周日=0 ... 周六=6），用于周日起始的日历网格
+export function firstWeekdaySunday(year: number, month: number): number {
+	return new Date(year, month - 1, 1).getDay()
+}
+
+export function monthLabel(year: number, month: number): string {
+	return `${year} 年 ${month} 月`
+}
+
+export function shortDate(dateStr: string): string {
+	if (dateStr.length >= 10) {
+		return dateStr.substring(5, 10)
+	}
+	return dateStr
+}
+
+export function shortDateTime(dateTime: string): string {
+	if (dateTime.length >= 16) {
+		return `${dateTime.substring(5, 10)} ${dateTime.substring(11, 16)}`
+	}
+	return shortDate(dateTime)
+}
+
+export function chatTimeLabel(dateTime: string): string {
+	if (dateTime.length < 10) {
+		return ''
+	}
+	const d = dateTime.substring(0, 10)
+	const today = todayStr()
+	if (d == today) {
+		if (dateTime.length >= 16) {
+			return dateTime.substring(11, 16)
+		}
+		return ''
+	}
+	if (d == addDays(today, -1)) {
+		return '昨天'
+	}
+	return d.substring(5, 10)
+}

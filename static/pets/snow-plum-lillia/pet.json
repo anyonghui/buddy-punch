@@ -1,0 +1,7 @@
+{
+  "id": "snow-plum-lillia",
+  "displayName": "莉莉娅",
+  "description": "雪梅莉莉娅 Codex 宠物，已修复动作连贯性：镜像左跑时序、稳定失败/等待/工作中循环、更清晰的跳跃弧线，并清理了色键边缘。",
+  "spritesheetPath": "spritesheet.webp",
+  "version": "1.1.0"
+}
