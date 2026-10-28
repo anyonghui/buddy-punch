@@ -76,25 +76,27 @@ $uni-color-paragraph: #3F536E; // 文章段落颜色
 $uni-font-size-paragraph:15px;
 
 /* ===== buddy 蜡笔速写主题变量（01-全局布局规范 §5.7） ===== */
-$color-primary: #6E8B74; // 主色：低饱和墨绿
-$color-primary-soft: #E7EDE5;
-$color-success: #6E8B74; // 已完成/已打卡
-$color-success-soft: #E7EDE5;
-$color-coin: #B58B4A; // 活力币/奖励
-$color-coin-soft: #F2E8D3;
-$color-danger: #9C5D4F; // 未打卡/失败
-$color-danger-soft: #F0E0DC;
+/* 2026-10-28：首页 B 版落地色板，整体加暖、加深辅助文字，保证小字可读 */
+$color-primary: #5F7D5C; // 主色：低饱和墨绿
+$color-primary-soft: #DDE6D6;
+$color-success: #5F7D5C; // 已完成/已打卡
+$color-success-soft: #DDE6D6;
+$color-coin: #C08A2E; // 活力币/奖励
+$color-coin-deep: #94651E;
+$color-coin-soft: #F3E3BE;
+$color-danger: #A25443; // 未打卡/失败
+$color-danger-soft: #F0DCD6;
 $color-disabled: #B7B1A5;
-$color-mask: rgba(62, 58, 53, 0.45);
-$color-paper: #FBF7EC;
+$color-mask: rgba(58, 52, 44, 0.45);
+$color-paper: #F6F1E4;
 $color-paper-2: #FFFDF6;
-$color-ink: #3E3A35;
-$color-line: #6B6259;
-$color-line-soft: #D8D0C2;
-$color-muted: #8A8175;
+$color-ink: #3A342C;
+$color-line: #3A342C;
+$color-line-soft: #B9AD98;
+$color-muted: #6F6658;
 
 /* 纸张肌理基底：全局复用，不要在页面内重复写噪点 */
 .paper-texture {
-	background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-	background-color: #fffef9;
+	background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)' opacity='0.045'/%3E%3C/svg%3E");
+	background-color: #F6F1E4;
 }

@@ -1,6 +1,6 @@
-<template>
+﻿<template>
 	<view class="draw-page buddy-page paper-texture">
-		<scroll-view class="page-scroll" scroll-y>
+		<scroll-view class="page-scroll" scroll-y :show-scrollbar="false">
 			<!-- ① 奖池展示 -->
 			<view class="pool-row">
 				<view class="pool-card buddy-card">
@@ -13,7 +13,7 @@
 					<text class="pool-name">书籍</text>
 					<text class="pool-rate">18%</text>
 				</view>
-				<view class="pool-card buddy-card">
+				<view class="pool-card pool-card-egg buddy-card">
 					<GameIcon icon="egg" :size="56" />
 					<text class="pool-name">蛋</text>
 					<text class="pool-rate">3%</text>
@@ -28,7 +28,7 @@
 						<GameIcon icon="egg" :size="28" :mr="6" />
 						<text class="pity-label">新宠物保底</text>
 					</view>
-					<text class="pity-count">{{ pityCount }}/30</text>
+					<text class="pity-count buddy-display">{{ pityCount }}/30</text>
 				</view>
 				<view class="buddy-progress pity-bar">
 					<view class="buddy-progress-fill-coin" :style="{ width: pityPercent }"></view>
@@ -40,7 +40,7 @@
 			<view class="balance-area">
 				<view class="balance-line">
 					<GameIcon icon="coin" :size="48" :mr="8" />
-					<text class="balance-text">{{ coinBalance }}</text>
+					<text class="balance-text buddy-display">{{ coinBalance }}</text>
 				</view>
 			</view>
 
@@ -61,9 +61,15 @@
 			</view>
 			<text v-if="disabledHint != ''" class="disabled-hint">{{ disabledHint }}</text>
 
-			<!-- ⑤ 留白 -->
-			<view class="draw-space"></view>
-			<text class="draw-doodle">✎</text>
+			<!-- ⑤ 抽奖台：静态装饰，填充留白 -->
+			<view class="draw-stage">
+				<view class="stage-halo"></view>
+				<view class="stage-pedestal"></view>
+				<view class="stage-egg">
+					<GameIcon icon="egg" :size="210" />
+				</view>
+				<text class="stage-caption buddy-display">蛋里会是什么呢</text>
+			</view>
 		</scroll-view>
 
 		<!-- ⑥ 破壳动画 + ⑦ 结果 + ⑧ 新宠物揭晓 -->
@@ -82,7 +88,7 @@
 					<view v-if="newPets.length > 0" class="reveal-area">
 						<text class="reveal-flag">新伙伴加入！图鉴 +1</text>
 						<PetSprite :petKey="newPets[0].petKey" state="idle" :height="300" :playing="true" />
-						<text class="reveal-name">{{ newPetNames }}</text>
+						<text class="reveal-name buddy-display">{{ newPetNames }}</text>
 					</view>
 					<view v-else class="review-area">
 						<PetSprite v-if="hasPet" :petKey="activePetKey" state="review" :height="180" :playing="true" />
@@ -356,6 +362,11 @@
 		justify-content: center;
 	}
 
+	.pool-card-egg {
+		background-color: var(--color-coin-soft);
+		border-color: var(--color-coin);
+	}
+
 	.pool-name {
 		font-size: 24rpx;
 		color: var(--color-ink);
@@ -363,7 +374,7 @@
 	}
 
 	.pool-rate {
-		font-size: 22rpx;
+		font-size: 24rpx;
 		color: var(--color-muted);
 		margin-top: 4rpx;
 	}
@@ -456,14 +467,57 @@
 		margin-top: 14rpx;
 	}
 
-	.draw-space {
-		height: 120rpx;
+	.draw-stage {
+		position: relative;
+		height: 900rpx;
+		margin-top: 24rpx;
+		align-items: center;
+		justify-content: flex-end;
 	}
 
-	.draw-doodle {
-		font-size: 38rpx;
-		color: var(--color-line-soft);
+	.stage-halo {
+		position: absolute;
+		left: 50%;
+		bottom: 260rpx;
+		width: 390rpx;
+		height: 390rpx;
+		margin-left: -195rpx;
+		border: 3rpx dashed var(--color-line-soft);
+		border-radius: 999rpx;
+		background-color: rgba(243, 227, 190, 0.32);
+	}
+
+	.stage-pedestal {
+		position: absolute;
+		left: 50%;
+		bottom: 266rpx;
+		width: 330rpx;
+		height: 44rpx;
+		margin-left: -165rpx;
+		border: 3rpx solid var(--color-line);
+		border-radius: 999rpx;
+		background-color: #E5D6B9;
+	}
+
+	.stage-egg {
+		position: absolute;
+		left: 50%;
+		bottom: 288rpx;
+		width: 210rpx;
+		margin-left: -105rpx;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.stage-caption {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 200rpx;
 		text-align: center;
+		font-size: 22rpx;
+		letter-spacing: 1rpx;
+		color: var(--color-muted);
 	}
 
 	/* 破壳弹层 */
@@ -567,3 +621,4 @@
 		margin-top: 12rpx;
 	}
 </style>
+

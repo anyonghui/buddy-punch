@@ -1,10 +1,10 @@
-<template>
+﻿<template>
 	<view class="pets-page buddy-page paper-texture">
-		<scroll-view class="page-scroll" scroll-y>
+		<scroll-view class="page-scroll" scroll-y :show-scrollbar="false">
 			<view v-if="hasPet" class="active-card buddy-card" @click="goDetail(activePetId)">
 				<PetSprite :petKey="activePetKey" :state="wilting ? 'failed' : 'idle'" :height="140" :playing="false" />
 				<view class="active-info">
-					<text class="active-name">{{ activePetName }}</text>
+					<text class="active-name buddy-display">{{ activePetName }}</text>
 					<text class="active-status">{{ wilting ? '蔫了' : '开心' }} · 陪伴中</text>
 				</view>
 				<text v-if="activePetChatUnlocked" class="active-badge">💬</text>
@@ -19,7 +19,7 @@
 							<text class="card-badge-text">💬</text>
 						</view>
 					</view>
-					<text class="pet-card-name">{{ p.name }}</text>
+					<text class="pet-card-name buddy-display">{{ p.name }}</text>
 					<view class="pet-card-action">
 						<text v-if="p.isActive" class="serving-text">● 陪伴中</text>
 						<view v-else class="buddy-btn buddy-btn-small" @click.stop="onSetActive(p.id, p.name)">
@@ -177,3 +177,4 @@
 		width: 320rpx;
 	}
 </style>
+

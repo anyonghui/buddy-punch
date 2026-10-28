@@ -1,6 +1,6 @@
-<template>
+﻿<template>
 	<view class="chat-list-page buddy-page paper-texture">
-		<scroll-view class="page-scroll" scroll-y>
+		<scroll-view class="page-scroll" scroll-y :show-scrollbar="false">
 			<view v-if="!aiConfigured" class="ai-tip" @click="goMine">
 				<text class="ai-tip-text">⚠ 未配置 AI，去设置</text>
 			</view>
@@ -12,7 +12,7 @@
 					</view>
 					<view class="row-body">
 						<view class="row-top">
-							<text class="row-name">{{ row.name }}</text>
+							<text class="row-name buddy-display">{{ row.name }}</text>
 							<text class="row-time">{{ timeText(row.lastAt) }}</text>
 						</view>
 						<text class="row-last">{{ row.lastText }}</text>
@@ -69,16 +69,16 @@
 <style lang="scss" scoped>
 	.chat-list-page {
 		flex: 1;
-		padding: 10rpx 24rpx 40rpx 24rpx;
+		padding: 12rpx 28rpx 40rpx 28rpx;
 	}
 
 	.ai-tip {
-		height: 72rpx;
+		height: 76rpx;
 		align-items: center;
 		justify-content: center;
-		margin-top: 16rpx;
+		margin-top: 14rpx;
 		margin-bottom: 8rpx;
-		border: 2rpx dashed var(--color-danger);
+		border: 2rpx solid var(--color-danger);
 		border-radius: 8rpx;
 		background-color: var(--color-danger-soft);
 	}
@@ -89,19 +89,19 @@
 	}
 
 	.chat-list {
-		margin-top: 8rpx;
+		margin-top: 10rpx;
 	}
 
 	.chat-row {
 		flex-direction: row;
 		align-items: center;
-		padding-top: 20rpx;
-		padding-bottom: 20rpx;
+		padding-top: 24rpx;
+		padding-bottom: 24rpx;
 		border-bottom: 2rpx solid var(--color-line-soft);
 	}
 
 	.chat-row-first {
-		padding-top: 6rpx;
+		padding-top: 8rpx;
 	}
 
 	.chat-row-gray {
@@ -109,11 +109,11 @@
 	}
 
 	.row-avatar {
-		width: 110rpx;
-		height: 104rpx;
+		width: 118rpx;
+		height: 112rpx;
 		align-items: center;
 		justify-content: flex-end;
-		margin-right: 18rpx;
+		margin-right: 20rpx;
 	}
 
 	.row-body {
@@ -127,20 +127,20 @@
 	}
 
 	.row-name {
-		font-size: 30rpx;
+		font-size: 32rpx;
 		font-weight: bold;
 		color: var(--color-ink);
 	}
 
 	.row-time {
-		font-size: 22rpx;
+		font-size: 20rpx;
 		color: var(--color-muted);
 	}
 
 	.row-last {
 		font-size: 24rpx;
 		color: var(--color-muted);
-		margin-top: 10rpx;
+		margin-top: 8rpx;
 		overflow: hidden;
 		white-space: nowrap;
 		text-overflow: ellipsis;
@@ -150,3 +150,4 @@
 		width: 300rpx;
 	}
 </style>
+

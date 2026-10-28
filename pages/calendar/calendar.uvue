@@ -1,13 +1,13 @@
-<template>
+﻿<template>
 	<view class="calendar-page buddy-page paper-texture">
-		<scroll-view class="page-scroll" scroll-y>
+		<scroll-view class="page-scroll" scroll-y :show-scrollbar="false">
 			<!-- ① 月历视图 -->
 			<view class="month-card buddy-card">
 				<view class="month-nav">
 					<view class="month-arrow" @click="prevMonth">
 						<text class="month-arrow-text">‹</text>
 					</view>
-					<text class="month-title">{{ monthTitle }}</text>
+					<text class="month-title buddy-display">{{ monthTitle }}</text>
 					<view class="month-arrow" @click="nextMonth">
 						<text class="month-arrow-text">›</text>
 					</view>
@@ -20,7 +20,7 @@
 				<view class="cal-grid">
 					<view v-for="cell in cells" :key="cell.key" class="cal-cell" :class="cellExtra(cell)" @click="onSelect(cell)">
 						<text v-if="!cell.empty" class="cal-day">{{ cell.day }}</text>
-						<text v-if="!cell.empty && cell.status != ''" class="cal-status">{{ cell.status }}</text>
+						<text v-if="!cell.empty && cell.status != ''" class="cal-status" :class="statusClass(cell)">{{ statusMark(cell) }}</text>
 					</view>
 				</view>
 			</view>
@@ -37,9 +37,9 @@
 
 			<!-- ③ 当日详情 -->
 			<view class="detail-card buddy-card">
-				<text class="detail-title">{{ dayTitle }}</text>
+				<text class="detail-title buddy-display">{{ dayTitle }}</text>
 				<view class="detail-status-row">
-					<text class="detail-status">{{ dayStatus }}</text>
+					<text class="detail-status" :class="dayStatusTone">{{ dayStatus }}</text>
 					<view v-if="dayCoin > 0" class="detail-coin">
 						<text class="detail-coin-text">+{{ dayCoin }}</text>
 						<GameIcon icon="coin" :size="24" :ml="4" />
@@ -65,6 +65,13 @@
 			<view class="month-stats-row">
 				<text class="month-stats">训练 {{ stats.trainDays }} 天 · 休息 {{ stats.restDays }} 天 · 累计 +{{ stats.coins }}</text>
 				<GameIcon icon="coin" :size="24" :ml="4" />
+			</view>
+
+			<view class="calendar-note-wrap">
+				<view class="calendar-note">
+					<view class="calendar-note-tape"></view>
+					<text class="calendar-note-text buddy-display">补卡是免费的，慢慢来</text>
+				</view>
 			</view>
 		</scroll-view>
 
@@ -248,20 +255,34 @@
 		const record = findCheckin(checkins.value, selected.value)
 		if (record != null) {
 			if (record.type == 'makeup') {
-				return '✏️ 已补卡'
+				return '补 · 已补卡'
 			}
 			if (isTrainingDate(selected.value)) {
-				return '✅ 已打卡'
+				return '✓ 已打卡'
 			}
-			return '〰️ 已休息打卡'
+			return '~ 已休息打卡'
 		}
 		if (selected.value > today.value) {
 			return '未来日期'
 		}
 		if (isTrainingDate(selected.value)) {
-			return '❌ 未打卡'
+			return '× 未打卡'
 		}
 		return '休息日未打卡'
+	})
+
+	const dayStatusTone = computed((): string => {
+		const record = findCheckin(checkins.value, selected.value)
+		if (record != null) {
+			return 'detail-status-done'
+		}
+		if (selected.value > today.value) {
+			return 'detail-status-muted'
+		}
+		if (isTrainingDate(selected.value)) {
+			return 'detail-status-miss'
+		}
+		return 'detail-status-muted'
 	})
 
 	const dayCoin = computed((): number => {
@@ -305,6 +326,39 @@
 			s = s + ' cal-future'
 		}
 		return s
+	}
+
+	// 日历状态用单色符号，避免 emoji 与纸面风格冲突
+	function statusMark(cell: CalendarCell): string {
+		if (cell.status == '✅') {
+			return '✓'
+		}
+		if (cell.status == '❌') {
+			return '×'
+		}
+		if (cell.status == '〰️') {
+			return '~'
+		}
+		if (cell.status == '✏️') {
+			return '补'
+		}
+		return ''
+	}
+
+	function statusClass(cell: CalendarCell): string {
+		if (cell.status == '✅') {
+			return 'cal-status-done'
+		}
+		if (cell.status == '❌') {
+			return 'cal-status-miss'
+		}
+		if (cell.status == '〰️') {
+			return 'cal-status-rest'
+		}
+		if (cell.status == '✏️') {
+			return 'cal-status-makeup'
+		}
+		return ''
 	}
 
 	function onSelect(cell: CalendarCell): void {
@@ -479,31 +533,37 @@
 		flex-direction: row;
 		align-items: center;
 		justify-content: space-between;
-		padding-left: 10rpx;
-		padding-right: 10rpx;
+		padding-left: 4rpx;
+		padding-right: 4rpx;
 	}
 
 	.month-arrow {
-		width: 64rpx;
-		height: 64rpx;
+		width: 56rpx;
+		height: 56rpx;
 		align-items: center;
 		justify-content: center;
+		border: 2rpx solid var(--color-line-soft);
+		border-radius: 6rpx;
+		background-color: var(--color-paper-2);
 	}
 
 	.month-arrow-text {
-		font-size: 44rpx;
+		font-size: 34rpx;
 		color: var(--color-ink);
 	}
 
 	.month-title {
-		font-size: 32rpx;
+		font-size: 34rpx;
 		font-weight: bold;
+		letter-spacing: 1rpx;
 		color: var(--color-ink);
 	}
 
 	.week-header {
 		flex-direction: row;
-		margin-top: 12rpx;
+		margin-top: 14rpx;
+		padding-bottom: 6rpx;
+		border-bottom: 2rpx solid var(--color-line-soft);
 	}
 
 	.week-head-text {
@@ -551,8 +611,25 @@
 	}
 
 	.cal-status {
-		font-size: 17rpx;
+		font-size: 18rpx;
+		font-weight: bold;
 		margin-top: 2rpx;
+	}
+
+	.cal-status-done {
+		color: var(--color-primary);
+	}
+
+	.cal-status-miss {
+		color: var(--color-danger);
+	}
+
+	.cal-status-rest {
+		color: var(--color-muted);
+	}
+
+	.cal-status-makeup {
+		color: var(--color-coin);
 	}
 
 	.batch-row {
@@ -593,6 +670,18 @@
 
 	.detail-status {
 		font-size: 24rpx;
+		font-weight: bold;
+	}
+
+	.detail-status-done {
+		color: var(--color-primary);
+	}
+
+	.detail-status-miss {
+		color: var(--color-danger);
+	}
+
+	.detail-status-muted {
 		color: var(--color-muted);
 	}
 
@@ -641,6 +730,42 @@
 
 	.month-stats {
 		font-size: 22rpx;
+		color: var(--color-muted);
+	}
+
+	.calendar-note-wrap {
+		align-items: center;
+		margin-top: 30rpx;
+		padding-bottom: 20rpx;
+	}
+
+	.calendar-note {
+		position: relative;
+		width: 340rpx;
+		height: 64rpx;
+		align-items: center;
+		justify-content: center;
+		border: 3rpx solid var(--color-line-soft);
+		background-color: var(--color-paper-2);
+		transform: rotate(-1.4deg);
+	}
+
+	.calendar-note-tape {
+		position: absolute;
+		left: 50%;
+		top: -10rpx;
+		width: 104rpx;
+		height: 20rpx;
+		margin-left: -52rpx;
+		background-color: rgba(192, 138, 46, 0.22);
+		border-left: 2rpx solid rgba(58, 52, 44, 0.22);
+		border-right: 2rpx solid rgba(58, 52, 44, 0.22);
+		transform: rotate(1.5deg);
+	}
+
+	.calendar-note-text {
+		font-size: 20rpx;
+		letter-spacing: 1rpx;
 		color: var(--color-muted);
 	}
 
@@ -716,3 +841,4 @@
 		color: var(--color-danger);
 	}
 </style>
+

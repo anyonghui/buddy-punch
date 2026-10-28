@@ -57,16 +57,16 @@
 		}
 	],
 	"tabBar": {
-		"color": "#8A8175",
-		"selectedColor": "#6E8B74",
-		"backgroundColor": "#FBF7EC",
+		"color": "#6F6658",
+		"selectedColor": "#5F7D5C",
+		"backgroundColor": "#F6F1E4",
 		"borderStyle": "black",
 		"list": [
 			{
 				"pagePath": "pages/index/index",
 				"text": "首页",
-				"iconPath": "static/tabbar/home.png",
-				"selectedIconPath": "static/tabbar/home-active.png"
+				"iconPath": "static/tabbar/home-house.png",
+				"selectedIconPath": "static/tabbar/home-house-active.png"
 			},
 			{
 				"pagePath": "pages/pets/pets",
@@ -97,8 +97,8 @@
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "buddy",
-		"navigationBarBackgroundColor": "#FBF7EC",
-		"backgroundColor": "#FBF7EC"
+		"navigationBarBackgroundColor": "#F6F1E4",
+		"backgroundColor": "#F6F1E4"
 	},
 	"uniIdRouter": {}
 }

@@ -37,11 +37,13 @@
 
 <style lang="scss">
 	page {
+		height: 100%;
 		--color-primary: #{$color-primary};
 		--color-primary-soft: #{$color-primary-soft};
 		--color-success: #{$color-success};
 		--color-success-soft: #{$color-success-soft};
 		--color-coin: #{$color-coin};
+		--color-coin-deep: #{$color-coin-deep};
 		--color-coin-soft: #{$color-coin-soft};
 		--color-danger: #{$color-danger};
 		--color-danger-soft: #{$color-danger-soft};
@@ -53,7 +55,7 @@
 		--color-line: #{$color-line};
 		--color-line-soft: #{$color-line-soft};
 		--color-muted: #{$color-muted};
-		--radius: 6rpx;
+		--radius: 8rpx;
 
 		background-color: $color-paper;
 		color: $color-ink;
@@ -61,8 +63,15 @@
 
 	/* ===== 基础布局 ===== */
 	.buddy-page {
-		flex: 1;
+		position: absolute;
+		left: 0;
+		right: 0;
+		top: 0;
+		bottom: 0;
 		flex-direction: column;
+		box-sizing: border-box;
+		/* 页面本身不滚动，滚动只发生在内部 scroll-view，避免页面级滚动条 */
+		overflow: hidden;
 		background-color: var(--color-paper);
 		color: var(--color-ink);
 	}
@@ -102,6 +111,11 @@
 	}
 
 	/* ===== 文字层级 ===== */
+	/* 展示级字体：只用系统衬线，不引入字体文件；安卓回退黑体可接受 */
+	.buddy-display {
+		font-family: serif;
+	}
+
 	.buddy-title {
 		font-size: 38rpx;
 		font-weight: bold;
@@ -144,7 +158,7 @@
 	/* ===== 卡片/容器 ===== */
 	.buddy-card {
 		background-color: var(--color-paper-2);
-		border: 3rpx dashed  var(--color-line);
+		border: 3rpx solid var(--color-line);
 		border-radius: var(--radius);
 	}
 
@@ -202,9 +216,9 @@
 	}
 
 	.buddy-btn-disabled {
-		background-color: var(--color-line-soft);
-		border-color: var(--color-disabled);
-		color: var(--color-disabled);
+		background-color: var(--color-paper-2);
+		border-color: var(--color-line-soft);
+		color: var(--color-muted);
 	}
 
 	.buddy-btn-text {
@@ -227,7 +241,7 @@
 	.buddy-btn-text-disabled {
 		font-size: 30rpx;
 		font-weight: bold;
-		color: var(--color-disabled);
+		color: var(--color-muted);
 	}
 
 	/* ===== 表单 ===== */

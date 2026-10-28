@@ -1,29 +1,46 @@
-<template>
+﻿<template>
 	<view class="mine-page buddy-page paper-texture">
-		<scroll-view class="page-scroll" scroll-y>
-			<!-- ① 概览 -->
+		<scroll-view class="page-scroll" scroll-y :show-scrollbar="false">
+			<!-- ① 概览：一行统计，不做卡片堆砌 -->
 			<view class="overview-row">
-				<text class="overview-text">宠物 {{ totals.petCount }} 只 · 打卡 {{ totals.checkinDays }} 天 · 累计 {{ totals.coinsEarned }}</text>
-				<GameIcon icon="coin" :size="24" :ml="4" />
+				<view class="overview-item">
+					<text class="overview-num buddy-display">{{ totals.petCount }}</text>
+					<text class="overview-label">宠物</text>
+				</view>
+				<text class="overview-dot">·</text>
+				<view class="overview-item">
+					<text class="overview-num buddy-display">{{ totals.checkinDays }}</text>
+					<text class="overview-label">打卡</text>
+				</view>
+				<text class="overview-dot">·</text>
+				<view class="overview-item">
+					<GameIcon icon="coin" :size="24" :mr="4" />
+					<text class="overview-num buddy-display">{{ totals.coinsEarned }}</text>
+					<text class="overview-label">累计</text>
+				</view>
 			</view>
 
 			<!-- ② 背包 -->
+			<text class="section-title">背包</text>
 			<view class="bag-row">
 				<view class="bag-card buddy-card">
 					<GameIcon icon="food" :size="64" />
 					<text class="bag-name">粮食</text>
-					<text class="bag-count">{{ foodCount }}</text>
+					<text class="bag-count buddy-display">{{ foodCount }}</text>
 				</view>
 				<view class="bag-card buddy-card">
 					<GameIcon icon="book" :size="64" />
 					<text class="bag-name">书籍</text>
-					<text class="bag-count">{{ bookCount }}</text>
+					<text class="bag-count buddy-display">{{ bookCount }}</text>
 				</view>
 			</view>
 
 			<!-- ③ 流水入口 -->
 			<view class="row-item" @click="goWallet">
-				<text class="row-text">货币流水</text>
+				<view class="row-main">
+					<GameIcon icon="coin" :size="34" :mr="10" />
+					<text class="row-text buddy-display">货币流水</text>
+				</view>
 				<text class="row-arrow">›</text>
 			</view>
 
@@ -122,9 +139,10 @@
 
 	const appVersion = APP_VERSION
 	const vibrateOn = ref(true)
-	const apiKey = ref('sk-f99e98ca81c2441facdc9e14a0fb968b')
-	const apiBase = ref('https://api.deepseek.com')
-	const apiModel = ref('deepseek-flash')
+	// 实际值由 syncSettings 从本地 settings 载入，不在源码里硬编码 Key
+	const apiKey = ref('')
+	const apiBase = ref('')
+	const apiModel = ref('')
 	const showImport = ref(false)
 	const importText = ref('')
 
@@ -228,14 +246,36 @@
 
 	.overview-row {
 		flex-direction: row;
-		flex-wrap: wrap;
 		align-items: center;
-		padding-left: 6rpx;
+		padding-left: 4rpx;
+		padding-right: 4rpx;
+		padding-bottom: 18rpx;
+		border-bottom: 2rpx solid var(--color-line-soft);
 	}
 
-	.overview-text {
-		font-size: 26rpx;
+	.overview-item {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.overview-num {
+		font-size: 34rpx;
+		font-weight: bold;
+		line-height: 1;
+		color: var(--color-ink);
+		margin-right: 5rpx;
+	}
+
+	.overview-label {
+		font-size: 22rpx;
 		color: var(--color-muted);
+	}
+
+	.overview-dot {
+		font-size: 22rpx;
+		color: var(--color-line-soft);
+		margin-left: 16rpx;
+		margin-right: 16rpx;
 	}
 
 	/* 背包 */
@@ -259,10 +299,11 @@
 	}
 
 	.bag-count {
-		font-size: 44rpx;
+		font-size: 46rpx;
 		font-weight: bold;
+		line-height: 1;
 		color: var(--color-coin);
-		margin-top: 6rpx;
+		margin-top: 8rpx;
 	}
 
 	/* 流水入口 */
@@ -277,8 +318,13 @@
 		background-color: var(--color-paper-2);
 	}
 
+	.row-main {
+		flex-direction: row;
+		align-items: center;
+	}
+
 	.row-text {
-		font-size: 28rpx;
+		font-size: 30rpx;
 		font-weight: bold;
 		color: var(--color-ink);
 	}
@@ -294,7 +340,8 @@
 		color: var(--color-ink);
 		margin-top: 30rpx;
 		margin-bottom: 12rpx;
-		padding-left: 6rpx;
+		padding-left: 12rpx;
+		border-left: 6rpx solid var(--color-primary);
 	}
 
 	.list-card {
@@ -433,3 +480,4 @@
 		color: var(--color-muted);
 	}
 </style>
+

@@ -1,6 +1,6 @@
-<template>
+﻿<template>
 	<view class="wallet-page buddy-page paper-texture">
-		<scroll-view class="page-scroll" scroll-y>
+		<scroll-view class="page-scroll" scroll-y :show-scrollbar="false">
 			<view v-if="records.length == 0" class="buddy-empty">
 				<view class="wallet-empty-icon">
 					<GameIcon icon="coin" :size="72" />
@@ -16,7 +16,7 @@
 					</view>
 					<view class="row-right">
 						<view class="row-amount-line">
-							<text class="row-amount" :class="record.amount >= 0 ? 'amount-in' : 'amount-out'">{{ amountText(record.amount) }}</text>
+							<text class="row-amount buddy-display" :class="record.amount >= 0 ? 'amount-in' : 'amount-out'">{{ amountText(record.amount) }}</text>
 							<GameIcon icon="coin" :size="26" :ml="4" />
 						</view>
 						<text class="row-balance">余 {{ record.balance }}</text>
@@ -113,7 +113,7 @@
 	}
 
 	.row-amount {
-		font-size: 30rpx;
+		font-size: 32rpx;
 		font-weight: bold;
 	}
 
@@ -138,3 +138,4 @@
 		height: 30rpx;
 	}
 </style>
+

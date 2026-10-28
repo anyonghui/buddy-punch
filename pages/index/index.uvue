@@ -1,127 +1,188 @@
 <template>
 	<view class="home buddy-page paper-texture">
-		<scroll-view class="page-scroll" scroll-y>
-			<!-- ① 顶部状态条 -->
-			<view class="home-status">
-				<view class="streak-line">
-					<GameIcon icon="train" :size="38" :mr="10" />
-					<text class="streak-text">连续 {{ streakDays }} 天</text>
-				</view>
-				<view class="status-right">
-					<view class="coin-line">
-						<GameIcon icon="coin" :size="42" :mr="8" />
-						<text class="coin-text">{{ coinBalance }}</text>
+		<scroll-view class="page-scroll" scroll-y :show-scrollbar="false">
+			<view class="home-inner">
+				<!-- ① 顶部状态条 -->
+				<view class="home-status">
+					<view class="streak-line">
+						<text class="streak-label">连续</text>
+						<view class="streak-num-box">
+							<text class="streak-num buddy-display">{{ streakDays }}</text>
+						</view>
+						<text class="streak-label">天</text>
 					</view>
-					<view class="gift-btn" @click="goDraw">
-						<view class="gift-flow"></view>
-						<view class="gift-inner">
-							<GameIcon icon="gift" :size="56" />
+					<view class="status-right">
+						<view class="coin-line">
+							<GameIcon icon="coin" :size="44" :mr="6" />
+							<text class="coin-text buddy-display">{{ coinBalance }}</text>
+						</view>
+						<!-- 抽奖入口：印章式方块，不用渐变流光 -->
+						<view class="gift-btn" @click="goDraw">
+							<view class="gift-inner"></view>
+							<text class="gift-text">抽</text>
 						</view>
 					</view>
 				</view>
+
+				<!-- ② 陪伴宠物区：手绘地面 + 大宠物 -->
+				<view class="pet-area">
+					<view v-if="hasPet" class="pet-scene">
+						<view class="ground-line"></view>
+						<view class="dirt-patch"></view>
+						<view class="grass grass-left">
+							<view class="blade blade-a"></view>
+							<view class="blade blade-b"></view>
+							<view class="blade blade-c"></view>
+						</view>
+						<view class="grass grass-right">
+							<view class="blade blade-d"></view>
+							<view class="blade blade-e"></view>
+							<view class="blade blade-f"></view>
+						</view>
+
+						<view class="pet-stage" @click="onPetTap">
+							<view v-if="passiveTip" class="coin-bubble">
+								<text class="coin-bubble-text">+{{ passiveAmount }}</text>
+								<GameIcon icon="coin" :size="26" :ml="4" />
+							</view>
+							<!-- <view v-if="activePetChatUnlocked" class="chat-badge">
+								<text class="chat-badge-text">💬</text>
+							</view> -->
+							<PetSprite :petKey="activePetKey" :state="displayState" :height="540" :playing="true"
+								:speed="animSpeed" />
+						</view>
+
+						<view class="pet-info">
+							<view class="pet-name-wrap">
+								<view class="name-highlight"></view>
+								<text class="pet-name buddy-display">{{ activePetName }}</text>
+							</view>
+							<view class="pet-state-row">
+								<view class="state-dot"></view>
+								<text class="pet-state">{{ wilting ? '蔫了' : '开心' }} · 陪伴中</text>
+							</view>
+							<text v-if="wilting" class="pet-hint">连续训练日断档了，完成今天打卡就能恢复</text>
+						</view>
+					</view>
+
+					<view v-else class="pet-empty">
+						<GameIcon icon="egg" :size="100" />
+						<text class="pet-empty-text">还没有宠物伙伴</text>
+						<view class="buddy-btn buddy-btn-main pet-claim-btn" @click="onClaim">
+							<text class="buddy-btn-text-inverse">领取初始宠物</text>
+						</view>
+					</view>
+				</view>
+
+				<!-- ③ 今日打卡：票根 -->
+				<view class="checkin-area">
+					<view v-if="!hasPet" class="checkin-locked">
+						<text class="checkin-locked-text">领取宠物后开始打卡</text>
+					</view>
+					<view v-else-if="todayChecked" class="ticket-wrap">
+						<view class="ticket-stage">
+							<view class="ticket ticket-done">
+								<view class="ticket-stub ticket-stub-done">
+									<text class="ticket-stub-main ticket-text-primary">今日</text>
+									<text class="ticket-stub-sub ticket-text-primary">DONE</text>
+								</view>
+								<view class="ticket-body">
+									<text class="ticket-title ticket-text-primary">今日已打卡 ✓</text>
+									<text class="ticket-gain ticket-text-primary buddy-display">+{{ todayCoinEarned }}</text>
+									<GameIcon icon="coin" :size="34" />
+								</view>
+							</view>
+							<view class="stamp stamp-done">
+								<view class="stamp-inner stamp-inner-done"></view>
+								<text class="stamp-text stamp-text-done">OK</text>
+							</view>
+						</view>
+					</view>
+					<view v-else class="ticket-wrap">
+						<view v-if="!wilting" class="now-hint">
+							<text class="now-note buddy-display">就现在</text>
+							<text class="now-arrow">↘</text>
+						</view>
+						<view class="ticket-stage">
+							<view class="ticket" :class="todayTraining ? 'ticket-main' : 'ticket-rest'" @click="onCheckin">
+								<view class="ticket-stub" :class="todayTraining ? 'ticket-stub-inverse' : ''">
+									<text class="ticket-stub-main" :class="todayTraining ? 'ticket-text-inverse' : 'ticket-text-ink'">今日</text>
+									<text class="ticket-stub-sub" :class="todayTraining ? 'ticket-text-inverse' : 'ticket-text-ink'">TODAY</text>
+								</view>
+								<view class="ticket-body">
+									<text class="ticket-title" :class="todayTraining ? 'ticket-text-inverse' : 'ticket-text-ink'">{{ checkinTitle }}</text>
+									<text class="ticket-gain buddy-display" :class="todayTraining ? 'ticket-text-inverse' : 'ticket-text-ink'">+{{ todayCoin }}</text>
+									<GameIcon icon="coin" :size="34" />
+								</view>
+							</view>
+							<view class="stamp">
+								<view class="stamp-inner"></view>
+								<text class="stamp-text">GO</text>
+							</view>
+						</view>
+					</view>
+				</view>
+
+				<!-- ④ 全勤：旗子小路 -->
+				<view class="week-area">
+					<view v-if="fullweek.canClaim" class="week-claim" @click="onClaimFullweek">
+						<GameIcon icon="gift" :size="38" :mr="8" />
+						<text class="week-claim-text">领取全勤宝箱 +20</text>
+						<GameIcon icon="coin" :size="28" :ml="6" />
+					</view>
+					<view v-else class="week-body">
+						<view class="week-head">
+							<text class="week-title">本周全勤</text>
+							<text class="week-sub">{{ weekCaption }}</text>
+						</view>
+						<view class="week-map">
+							<view class="week-path"></view>
+							<view class="week-flags">
+								<view v-for="d in fullweek.days" :key="d.label" class="week-flag"
+									:class="d.label == todayFlagLabel ? 'week-flag-today' : ''">
+									<text v-if="d.label == todayFlagLabel" class="flag-today">今天</text>
+									<view class="flag-body">
+										<view class="flag-pole"></view>
+										<view class="flag-cloth" :class="d.done ? 'flag-cloth-done' : ''">
+											<text v-if="d.done" class="flag-check">✓</text>
+										</view>
+									</view>
+									<text class="flag-label" :class="d.label == todayFlagLabel ? 'flag-label-today' : ''">{{ d.label }}</text>
+								</view>
+								<view class="chest">
+									<view class="chest-lid"></view>
+									<view class="chest-body">
+										<view class="chest-lock"></view>
+									</view>
+								</view>
+							</view>
+						</view>
+						<view class="week-foot">
+							<text class="week-foot-text">{{ weekFootText }}</text>
+							<text class="week-foot-date">{{ todayDateLabel }}</text>
+						</view>
+					</view>
+				</view>
+
+				<!-- ⑤ 页脚手写便签 -->
+				<view v-if="hasPet" class="note-wrap">
+					<view class="page-note">
+						<view class="note-tape"></view>
+						<text class="note-text buddy-display">今天也来动一下吧</text>
+					</view>
+				</view>
+
+				<view class="home-bottom-space"></view>
 			</view>
-
-			<!-- ② 陪伴宠物区 -->
-			<view class="pet-area">
-				<view v-if="hasPet" class="pet-stage-row">
-					<!-- 左侧动作按钮 -->
-					<view class="pet-action-col">
-						<view v-for="item in leftActions" :key="item.state" class="pet-action-btn"
-							:class="pressedAction == item.state ? 'pet-action-btn-pressed' : ''"
-							@touchstart="pressAction(item.state)" @touchend="releaseAction"
-							@touchcancel="releaseAction" @click="onActionTap(item.state)">
-							<text class="pet-action-text"
-								:class="pressedAction == item.state ? 'pet-action-text-pressed' : ''">{{ item.label }}</text>
-						</view>
-					</view>
-
-					<view class="pet-stage" @click="onPetTap">
-						<view v-if="passiveTip" class="coin-bubble">
-							<text class="coin-bubble-text">+{{ passiveAmount }}</text>
-							<GameIcon icon="coin" :size="26" :ml="4" />
-						</view>
-						<!-- <view v-if="activePetChatUnlocked" class="chat-badge">
-							<text class="chat-badge-text">💬</text>
-						</view> -->
-						<PetSprite :petKey="activePetKey" :state="displayState" :height="480" :playing="true" :speed="animSpeed" :restart="playNonce" />
-					</view>
-
-					<!-- 右侧动作按钮 -->
-					<view class="pet-action-col">
-						<view v-for="item in rightActions" :key="item.state" class="pet-action-btn"
-							:class="pressedAction == item.state ? 'pet-action-btn-pressed' : ''"
-							@touchstart="pressAction(item.state)" @touchend="releaseAction"
-							@touchcancel="releaseAction" @click="onActionTap(item.state)">
-							<text class="pet-action-text"
-								:class="pressedAction == item.state ? 'pet-action-text-pressed' : ''">{{ item.label }}</text>
-						</view>
-					</view>
-				</view>
-
-				<view v-else class="pet-empty buddy-card">
-					<GameIcon icon="egg" :size="90" />
-					<text class="pet-empty-text">还没有宠物伙伴</text>
-					<view class="buddy-btn buddy-btn-main pet-claim-btn" @click="onClaim">
-						<text class="buddy-btn-text-inverse">领取初始宠物</text>
-					</view>
-				</view>
-
-				<view v-if="hasPet" class="pet-info">
-					<text class="pet-name">{{ activePetName }}</text>
-					<text class="pet-state-text">{{ wilting ? '蔫了' : '开心' }} · 陪伴中</text>
-					<text v-if="wilting" class="pet-hint">连续训练日断档了，完成今天打卡就能恢复</text>
-				</view>
-			</view>
-
-			<!-- ③ 今日打卡区 -->
-			<view class="checkin-area">
-				<view v-if="!hasPet" class="checkin-locked">
-					<text class="checkin-locked-text">领取宠物后开始打卡</text>
-				</view>
-				<view v-else-if="todayChecked" class="checkin-done">
-					<view class="checkin-done-row">
-						<text class="checkin-done-text">今日已打卡 ✓</text>
-						<text class="checkin-done-coin">+{{ todayCoinEarned }}</text>
-						<GameIcon icon="coin" :size="28" :ml="4" />
-					</view>
-				</view>
-				<view v-else class="buddy-btn checkin-btn" :class="todayTraining ? 'buddy-btn-main' : ''" @click="onCheckin">
-					<view class="checkin-label">
-						<text :class="todayTraining ? 'buddy-btn-text-inverse' : 'buddy-btn-text'">{{ checkinLabel }}</text>
-						<GameIcon icon="coin" :size="30" :ml="6" />
-					</view>
-				</view>
-			</view>
-
-			<!-- ④ 全勤进度 -->
-			<view class="week-area buddy-card">
-				<view v-if="fullweek.canClaim" class="week-claim" @click="onClaimFullweek">
-					<GameIcon icon="gift" :size="34" :mr="8" />
-					<text class="week-claim-text">领取全勤宝箱 +20</text>
-					<GameIcon icon="coin" :size="28" :ml="4" />
-				</view>
-				<view v-else class="week-progress">
-					<text class="week-title">本周全勤</text>
-					<view class="week-dots">
-						<view v-for="d in fullweek.days" :key="d.label" class="week-dot-wrap">
-							<text class="week-dot" :class="d.done ? 'week-dot-done' : ''">{{ d.done ? '●' : '○' }}</text>
-							<text class="week-dot-label">{{ d.label }}</text>
-						</view>
-					</view>
-					<text class="week-caption">{{ weekCaption }}</text>
-				</view>
-			</view>
-
-			<view class="home-bottom-space"></view>
 		</scroll-view>
 
-		<!-- ⑦ 打卡成功反馈 -->
+		<!-- 打卡成功反馈 -->
 		<view v-if="showCheckinModal" class="buddy-mask" @click="closeCheckin">
 			<view class="buddy-modal" @click.stop>
 				<PetSprite v-if="hasPet" :petKey="activePetKey" state="jump" :height="200" :playing="true" />
 				<text class="buddy-modal-title">打卡完成！</text>
 				<view class="gain-line">
-					<text class="checkin-gain">+{{ lastOutcome.total }}</text>
+					<text class="checkin-gain buddy-display">+{{ lastOutcome.total }}</text>
 					<GameIcon icon="coin" :size="42" :ml="6" />
 				</view>
 				<view v-if="lastOutcome.bonus > 0" class="bonus-line">
@@ -141,7 +202,7 @@
 				<GameIcon icon="gift" :size="80" />
 				<text class="buddy-modal-title">全勤达成</text>
 				<view class="gain-line">
-					<text class="checkin-gain">+20</text>
+					<text class="checkin-gain buddy-display">+20</text>
 					<GameIcon icon="coin" :size="42" :ml="6" />
 				</view>
 				<text class="buddy-modal-text">一周四个训练日全部完成，宝箱已入账。</text>
@@ -173,21 +234,13 @@
 		refreshStore
 	} from '@/common/store.uts'
 	import { claimInitialPet, performCheckin, claimPassiveCoin, claimFullweek } from '@/common/repository.uts'
-	import { todayStr, nowIso, isTrainingDate } from '@/common/date.uts'
+	import { todayStr, nowIso, isTrainingDate, weekdayLabel } from '@/common/date.uts'
 	import { CheckinOutcome } from '@/common/types.uts'
-	import { getAnim, PetActionItem, PET_ACTIONS_LEFT, PET_ACTIONS_RIGHT } from '@/common/pet-anim.uts'
 
 	// 宠物帧播放减速倍数：1.5 = 慢 1.5 倍
 	const animSpeed = 1.5
-	const leftActions: PetActionItem[] = PET_ACTIONS_LEFT
-	const rightActions: PetActionItem[] = PET_ACTIONS_RIGHT
-	// 点击动作按钮时的按压态（颜色加深）
-	const pressedAction = ref('')
-	// 按钮触发的单次动作预览，播完自动回到 idle
-	const previewState = ref('')
-	// 累加值：重复点同一动作时强制从第 0 帧重播
-	const playNonce = ref(0)
 
+	// 点击互动：waving / jumping 播 1 轮后回 idle
 	const interactState = ref('')
 	const passiveTip = ref(false)
 	const passiveAmount = ref(1)
@@ -198,8 +251,6 @@
 
 	let interactTimer = -1
 	let passiveTimer = -1
-	let previewTimer = -1
-	let pressTimer = -1
 	let lastTapAt = 0
 
 	const trainWords: string[] = [
@@ -219,9 +270,6 @@
 	]
 
 	const displayState = computed((): string => {
-		if (previewState.value != '') {
-			return previewState.value
-		}
 		if (wilting.value) {
 			return 'failed'
 		}
@@ -231,11 +279,8 @@
 		return 'idle'
 	})
 
-	const checkinLabel = computed((): string => {
-		if (todayTraining.value) {
-			return `完成训练 +${todayCoin.value}`
-		}
-		return `休息打卡 +${todayCoin.value}`
+	const checkinTitle = computed((): string => {
+		return todayTraining.value ? '完成训练' : '休息打卡'
 	})
 
 	const weekCaption = computed((): string => {
@@ -252,6 +297,27 @@
 		return '周日可领取全勤宝箱'
 	})
 
+	const weekFootText = computed((): string => {
+		const info = fullweek.value
+		if (info.claimed) {
+			return '本周已领取，下周继续'
+		}
+		if (info.missing > 0) {
+			return `再练 ${info.missing} 天，就能开宝箱`
+		}
+		return '本周全勤已达成'
+	})
+
+	// 首页四个训练日标签只显示「一/三/五/六」，今天标签去掉“周”字
+	const todayFlagLabel = computed((): string => {
+		return weekdayLabel(todayStr()).substring(1)
+	})
+
+	const todayDateLabel = computed((): string => {
+		const t = todayStr()
+		return `${t.substring(5, 7)}.${t.substring(8, 10)} ${weekdayLabel(t)}`
+	})
+
 	function clearInteractTimer(): void {
 		if (interactTimer != -1) {
 			clearTimeout(interactTimer)
@@ -266,63 +332,6 @@
 		}
 	}
 
-	function clearPreviewTimer(): void {
-		if (previewTimer != -1) {
-			clearTimeout(previewTimer)
-			previewTimer = -1
-		}
-	}
-
-	function clearPressTimer(): void {
-		if (pressTimer != -1) {
-			clearTimeout(pressTimer)
-			pressTimer = -1
-		}
-	}
-
-	// 结束动作预览，回到默认怠速动画
-	function clearPreview(): void {
-		clearPreviewTimer()
-		previewState.value = ''
-	}
-
-	// 播放一遍指定动作：时长按图集帧数/fps 换算（含减速倍数），播完回 idle
-	function playAction(state: string): void {
-		clearInteractTimer()
-		interactState.value = ''
-		clearPassiveTimer()
-		passiveTip.value = false
-		clearPreviewTimer()
-		const def = getAnim(state)
-		previewState.value = state
-		playNonce.value = playNonce.value + 1
-		const duration = Math.round(def.frames * 1000 / def.fps * animSpeed) + 120
-		previewTimer = setTimeout(() => {
-			previewState.value = ''
-			previewTimer = -1
-		}, duration)
-	}
-
-	function pressAction(state: string): void {
-		clearPressTimer()
-		pressedAction.value = state
-	}
-
-	// 松开后保留 120ms 按压态，保证快速点击也能看到颜色加深
-	function releaseAction(): void {
-		clearPressTimer()
-		pressTimer = setTimeout(() => {
-			pressedAction.value = ''
-			pressTimer = -1
-		}, 120)
-	}
-
-	function onActionTap(state: string): void {
-		pressAction(state)
-		releaseAction()
-		playAction(state)
-	}
-
 	function checkPassive(): void {
 		if (!hasPet.value) {
 			return
@@ -331,7 +340,6 @@
 			return
 		}
 		refreshStore()
-		clearPreview()
 		passiveTip.value = true
 		passiveAmount.value = 1
 		interactState.value = 'wave'
@@ -361,7 +369,6 @@
 		if (wilting.value) {
 			return
 		}
-		clearPreview()
 		const now = Date.now()
 		if (now - lastTapAt < 1000) {
 			return
@@ -391,7 +398,6 @@
 		const words = isTrainingDate(today) ? trainWords : restWords
 		encourageText.value = words[Math.floor(Math.random() * words.length)]
 		refreshStore()
-		clearPreview()
 		interactState.value = 'jump'
 		showCheckinModal.value = true
 		if (settings.value.vibrate) {
@@ -406,7 +412,6 @@
 			return
 		}
 		refreshStore()
-		clearPreview()
 		interactState.value = 'jump'
 		clearInteractTimer()
 		interactTimer = setTimeout(() => {
@@ -429,7 +434,6 @@
 
 	function closeCheckin(): void {
 		showCheckinModal.value = false
-		clearPreview()
 		interactState.value = ''
 		refreshStore()
 	}
@@ -450,9 +454,6 @@
 	onHide(() => {
 		clearInteractTimer()
 		clearPassiveTimer()
-		clearPreview()
-		clearPressTimer()
-		pressedAction.value = ''
 		passiveTip.value = false
 		interactState.value = ''
 	})
@@ -460,26 +461,29 @@
 	onUnload(() => {
 		clearInteractTimer()
 		clearPassiveTimer()
-		clearPreviewTimer()
-		clearPressTimer()
 	})
 </script>
 
 <style lang="scss" scoped>
 	.home {
 		flex: 1;
-		/* 首页无标题栏，顶部留出更多呼吸空间 */
-		padding: 92rpx 28rpx 40rpx 28rpx;
+		/* 首页无标题栏，顶部留出状态栏与呼吸空间 */
+		padding: 92rpx 32rpx 16rpx 32rpx;
 	}
 
-	/* ① 顶部状态条 */
+	.home-inner {
+		width: 100%;
+		flex-direction: column;
+	}
+
+	/* ===== ① 顶部状态条 ===== */
 	.home-status {
 		height: 108rpx;
 		flex-direction: row;
 		align-items: center;
 		justify-content: space-between;
-		padding-left: 8rpx;
-		padding-right: 8rpx;
+		padding-left: 4rpx;
+		padding-right: 4rpx;
 	}
 
 	.streak-line {
@@ -487,9 +491,24 @@
 		align-items: center;
 	}
 
-	.streak-text {
-		font-size: 30rpx;
+	.streak-label {
+		font-size: 24rpx;
 		color: var(--color-muted);
+	}
+
+	.streak-num-box {
+		padding: 2rpx 8rpx;
+		margin-left: 6rpx;
+		margin-right: 6rpx;
+		background-color: var(--color-primary-soft);
+		transform: rotate(-1deg);
+	}
+
+	.streak-num {
+		font-size: 44rpx;
+		font-weight: bold;
+		line-height: 1;
+		color: var(--color-ink);
 	}
 
 	.status-right {
@@ -500,130 +519,163 @@
 	.coin-line {
 		flex-direction: row;
 		align-items: center;
-		margin-right: 24rpx;
+		margin-right: 20rpx;
 	}
 
 	.coin-text {
-		font-size: 36rpx;
+		font-size: 44rpx;
 		font-weight: bold;
+		line-height: 1;
 		color: var(--color-coin);
 	}
 
-	/* 抽奖入口：外层币色底 + 流光条，内层纸色面板露出边框 */
+	/* 抽奖入口：纸面印章块 */
 	.gift-btn {
 		position: relative;
-		width: 96rpx;
-		height: 96rpx;
+		width: 80rpx;
+		height: 80rpx;
 		align-items: center;
 		justify-content: center;
 		border: 3rpx solid var(--color-line);
 		border-radius: 8rpx;
-		background-color: var(--color-coin);
-		overflow: hidden;
-	}
-
-	.gift-flow {
-		position: absolute;
-		top: -90rpx;
-		left: -140rpx;
-		width: 110rpx;
-		height: 300rpx;
-		z-index: 1;
-		background-image: linear-gradient(90deg, rgba(255, 254, 249, 0) 0%, rgba(255, 254, 249, 0.95) 50%, rgba(255, 254, 249, 0) 100%);
-		transform: rotate(24deg);
-		animation-name: gift-flow-run;
-		animation-duration: 2.6s;
-		animation-timing-function: linear;
-		animation-iteration-count: infinite;
+		background-color: var(--color-coin-soft);
+		transform: rotate(-3deg);
 	}
 
 	.gift-inner {
-		position: relative;
-		z-index: 2;
-		width: 84rpx;
-		height: 84rpx;
-		align-items: center;
-		justify-content: center;
-		background-color: var(--color-paper-2);
+		position: absolute;
+		left: 7rpx;
+		right: 7rpx;
+		top: 7rpx;
+		bottom: 7rpx;
+		border: 2rpx dashed rgba(58, 52, 44, 0.45);
 		border-radius: 4rpx;
 	}
 
-	@keyframes gift-flow-run {
-		0% {
-			transform: translateX(0) rotate(24deg);
-		}
-		100% {
-			transform: translateX(260rpx) rotate(24deg);
-		}
-	}
-
-	/* ② 宠物区 */
-	.pet-area {
-		min-height: 640rpx;
-		align-items: center;
-		justify-content: flex-end;
-		padding-top: 20rpx;
-	}
-
-	/* 动作按钮列 + 宠物舞台 + 动作按钮列 */
-	.pet-stage-row {
-		width: 100%;
-		flex-direction: row;
-		align-items: flex-end;
-		justify-content: center;
-	}
-
-	.pet-action-col {
-		width: 106rpx;
-		margin-left: 4rpx;
-		margin-right: 4rpx;
-		align-items: center;
-	}
-
-	.pet-action-btn {
-		width: 106rpx;
-		height: 62rpx;
-		margin-bottom: 14rpx;
-		align-items: center;
-		justify-content: center;
-		border: 3rpx dashed var(--color-line);
-		border-radius: 8rpx;
-		background-color: var(--color-paper-2);
-	}
-
-	/* 按压态：底色加深 + 描边实线 */
-	.pet-action-btn-pressed {
-		background-color: var(--color-primary-soft);
-		border-style: solid;
-		border-color: var(--color-ink);
-	}
-
-	.pet-action-text {
-		font-size: 24rpx;
-		color: var(--color-muted);
-	}
-
-	.pet-action-text-pressed {
+	.gift-text {
+		position: relative;
+		z-index: 2;
+		font-size: 32rpx;
 		font-weight: bold;
 		color: var(--color-ink);
 	}
 
-	.pet-stage {
+	/* ===== ② 宠物区 ===== */
+	.pet-area {
+		height: 840rpx;
 		position: relative;
+	}
+
+	.pet-scene {
+		width: 100%;
+		height: 840rpx;
+		position: relative;
+	}
+
+	.ground-line {
+		position: absolute;
+		left: 16rpx;
+		right: 16rpx;
+		bottom: 270rpx;
+		height: 3rpx;
+		background-color: var(--color-line);
+		border-radius: 2rpx;
+		transform: rotate(-0.4deg);
+	}
+
+	.dirt-patch {
+		position: absolute;
+		left: 50%;
+		bottom: 246rpx;
+		width: 340rpx;
+		height: 48rpx;
+		margin-left: -170rpx;
+		border: 3rpx solid var(--color-line);
+		border-radius: 999rpx;
+		background-color: #E5D6B9;
+	}
+
+	.grass {
+		position: absolute;
+		bottom: 258rpx;
+		width: 110rpx;
+		height: 60rpx;
+	}
+
+	.grass-left {
+		left: 34rpx;
+	}
+
+	.grass-right {
+		right: 34rpx;
+	}
+
+	.blade {
+		position: absolute;
+		bottom: 0;
+		width: 4rpx;
+		background-color: var(--color-primary);
+		border-radius: 3rpx;
+	}
+
+	.blade-a {
+		left: 16rpx;
+		height: 34rpx;
+		transform: rotate(-12deg);
+	}
+
+	.blade-b {
+		left: 38rpx;
+		height: 48rpx;
+		transform: rotate(3deg);
+	}
+
+	.blade-c {
+		left: 62rpx;
+		height: 30rpx;
+		transform: rotate(15deg);
+	}
+
+	.blade-d {
+		left: 14rpx;
+		height: 30rpx;
+		transform: rotate(-15deg);
+	}
+
+	.blade-e {
+		left: 38rpx;
+		height: 46rpx;
+		transform: rotate(-2deg);
+	}
+
+	.blade-f {
+		left: 64rpx;
+		height: 34rpx;
+		transform: rotate(11deg);
+	}
+
+	.pet-stage {
+		position: absolute;
+		left: 50%;
+		margin-left: -249rpx;
+		width: 498rpx;
+		bottom: 270rpx;
 		align-items: center;
 		justify-content: flex-end;
+		z-index: 2;
 	}
 
 	.coin-bubble {
 		position: absolute;
 		top: 0;
-		left: -30rpx;
+		left: -26rpx;
 		flex-direction: row;
 		align-items: center;
-		padding: 8rpx 18rpx;
+		padding: 8rpx 16rpx;
 		border: 3rpx solid var(--color-coin);
 		border-radius: 8rpx;
 		background-color: var(--color-coin-soft);
+		z-index: 5;
 	}
 
 	.coin-bubble-text {
@@ -634,8 +686,8 @@
 
 	.chat-badge {
 		position: absolute;
-		top: 0;
-		right: -20rpx;
+		top: 8rpx;
+		right: -10rpx;
 		width: 52rpx;
 		height: 52rpx;
 		align-items: center;
@@ -643,41 +695,85 @@
 		border: 2rpx solid var(--color-line);
 		border-radius: 8rpx;
 		background-color: var(--color-paper-2);
+		z-index: 5;
 	}
 
 	.chat-badge-text {
-		font-size: 28rpx;
+		font-size: 26rpx;
 	}
 
 	.pet-info {
-		margin-top: 20rpx;
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 100rpx;
 		align-items: center;
 	}
 
+	.pet-name-wrap {
+		position: relative;
+		align-items: center;
+	}
+
+	.name-highlight {
+		position: absolute;
+		left: 2rpx;
+		right: 2rpx;
+		bottom: 10rpx;
+		height: 24rpx;
+		background-color: var(--color-coin-soft);
+		border-radius: 2rpx;
+	}
+
 	.pet-name {
-		font-size: 40rpx;
+		position: relative;
+		z-index: 2;
+		font-size: 60rpx;
 		font-weight: bold;
+		line-height: 1.1;
+		letter-spacing: 2rpx;
 		color: var(--color-ink);
 	}
 
-	.pet-state-text {
+	.pet-state-row {
+		flex-direction: row;
+		align-items: center;
+		margin-top: 6rpx;
+	}
+
+	.state-dot {
+		width: 10rpx;
+		height: 10rpx;
+		margin-right: 8rpx;
+		border-radius: 999rpx;
+		background-color: var(--color-primary);
+	}
+
+	.pet-state {
 		font-size: 24rpx;
+		letter-spacing: 1rpx;
 		color: var(--color-muted);
-		margin-top: 10rpx;
 	}
 
 	.pet-hint {
-		font-size: 22rpx;
+		font-size: 20rpx;
+		line-height: 1.4;
 		color: var(--color-danger);
-		margin-top: 8rpx;
+		margin-top: 4rpx;
+		text-align: center;
+		padding-left: 40rpx;
+		padding-right: 40rpx;
 	}
 
 	.pet-empty {
 		width: 100%;
-		height: 460rpx;
+		height: 640rpx;
+		margin-top: 100rpx;
 		align-items: center;
 		justify-content: center;
-		border-style: dashed;
+		border: 3rpx solid var(--color-line-soft);
+		border-radius: 8rpx;
+		background-color: var(--color-paper-2);
 	}
 
 	.pet-empty-text {
@@ -691,49 +787,178 @@
 		margin-top: 30rpx;
 	}
 
-	/* ③ 打卡区 */
+	/* ===== ③ 打卡票根 ===== */
 	.checkin-area {
-		min-height: 200rpx;
-		align-items: center;
+		position: relative;
+		padding-top: 6rpx;
+		padding-bottom: 10rpx;
+		min-height: 160rpx;
 		justify-content: center;
-		padding-top: 20rpx;
 	}
 
-	.checkin-btn {
+	.ticket-wrap {
+		position: relative;
 		width: 100%;
 	}
 
-	.checkin-done {
+	.ticket-stage {
+		position: relative;
 		width: 100%;
-		height: 96rpx;
+	}
+
+	.now-hint {
+		width: 100%;
+		flex-direction: row;
 		align-items: center;
-		justify-content: center;
-		border: 3rpx dashed var(--color-success);
+		padding-left: 40rpx;
+		margin-bottom: 2rpx;
+		transform: rotate(-4deg);
+	}
+
+	.now-note {
+		font-size: 22rpx;
+		color: var(--color-muted);
+	}
+
+	.now-arrow {
+		font-size: 32rpx;
+		line-height: 1;
+		color: var(--color-muted);
+		margin-left: 4rpx;
+	}
+
+	.ticket {
+		position: relative;
+		width: 100%;
+		height: 128rpx;
+		flex-direction: row;
+		align-items: stretch;
+		border: 4rpx solid var(--color-line);
 		border-radius: 8rpx;
-		background-color: var(--color-success-soft);
+		transform: rotate(-0.35deg);
+		background-color: var(--color-primary);
 	}
 
-	.checkin-done-row {
+	.ticket-main {
+		background-color: var(--color-primary);
+	}
+
+	.ticket-rest {
+		background-color: var(--color-paper-2);
+	}
+
+	.ticket-done {
+		background-color: var(--color-paper-2);
+		border-style: dashed;
+		border-color: var(--color-primary);
+		transform: rotate(-0.3deg);
+	}
+
+	.ticket-stub {
+		width: 116rpx;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		border-right: 3rpx dashed rgba(58, 52, 44, 0.5);
+	}
+
+	.ticket-stub-inverse {
+		border-right-color: rgba(255, 253, 246, 0.68);
+	}
+
+	.ticket-stub-done {
+		border-right-color: var(--color-primary);
+	}
+
+	.ticket-stub-main {
+		font-size: 24rpx;
+		font-weight: bold;
+		letter-spacing: 2rpx;
+	}
+
+	.ticket-stub-sub {
+		font-size: 12rpx;
+		letter-spacing: 3rpx;
+		margin-top: 4rpx;
+		opacity: 0.72;
+	}
+
+	.ticket-body {
+		flex: 1;
 		flex-direction: row;
 		align-items: center;
+		justify-content: center;
 	}
 
-	.checkin-done-text {
-		font-size: 30rpx;
+	.ticket-title {
+		font-size: 34rpx;
 		font-weight: bold;
-		color: var(--color-success);
+		letter-spacing: 2rpx;
 	}
 
-	.checkin-done-coin {
-		font-size: 30rpx;
+	.ticket-gain {
+		font-size: 42rpx;
 		font-weight: bold;
-		color: var(--color-success);
-		margin-left: 12rpx;
+		margin-left: 8rpx;
+		margin-right: 4rpx;
 	}
 
-	.checkin-label {
-		flex-direction: row;
+	.ticket-text-inverse {
+		color: var(--color-paper-2);
+	}
+
+	.ticket-text-ink {
+		color: var(--color-ink);
+	}
+
+	.ticket-text-primary {
+		color: var(--color-primary);
+	}
+
+	.stamp {
+		position: absolute;
+		right: 16rpx;
+		top: 16rpx;
+		width: 88rpx;
+		height: 88rpx;
 		align-items: center;
+		justify-content: center;
+		border: 4rpx solid var(--color-danger);
+		border-radius: 999rpx;
+		background-color: var(--color-paper);
+		transform: rotate(12deg);
+		z-index: 6;
+	}
+
+	.stamp-done {
+		border-color: var(--color-primary);
+	}
+
+	.stamp-inner {
+		position: absolute;
+		left: 6rpx;
+		right: 6rpx;
+		top: 6rpx;
+		bottom: 6rpx;
+		border: 2rpx dashed var(--color-danger);
+		border-radius: 999rpx;
+	}
+
+	.stamp-inner-done {
+		border-color: var(--color-primary);
+	}
+
+	.stamp-text {
+		position: relative;
+		z-index: 2;
+		font-size: 24rpx;
+		font-weight: bold;
+		letter-spacing: 1rpx;
+		color: var(--color-danger);
+	}
+
+	.stamp-text-done {
+		color: var(--color-primary);
 	}
 
 	.checkin-locked {
@@ -745,80 +970,235 @@
 		color: var(--color-muted);
 	}
 
-	/* ④ 全勤 */
+	/* ===== ④ 全勤旗子小路 ===== */
 	.week-area {
-		margin-top: 20rpx;
-		padding: 22rpx 24rpx;
+		padding-top: 6rpx;
 	}
 
-	.week-progress {
+	.week-body {
+		width: 100%;
+	}
+
+	.week-head {
 		flex-direction: row;
 		align-items: center;
-		flex-wrap: wrap;
+		justify-content: space-between;
 	}
 
 	.week-title {
 		font-size: 28rpx;
 		font-weight: bold;
+		letter-spacing: 1rpx;
 		color: var(--color-ink);
-		margin-right: 24rpx;
 	}
 
-	.week-dots {
+	.week-sub {
+		font-size: 20rpx;
+		color: var(--color-muted);
+	}
+
+	.week-map {
+		position: relative;
+		height: 120rpx;
+		margin-top: 4rpx;
+	}
+
+	.week-path {
+		position: absolute;
+		left: 10rpx;
+		right: 10rpx;
+		top: 66rpx;
+		height: 2rpx;
+		border-top: 2rpx dashed var(--color-line-soft);
+		transform: rotate(-1deg);
+	}
+
+	.week-flags {
+		position: absolute;
+		left: 0;
+		right: 0;
+		top: 0;
+		height: 120rpx;
 		flex-direction: row;
-		align-items: center;
+		align-items: flex-end;
+		justify-content: space-between;
+	}
+
+	.week-flag {
 		flex: 1;
+		position: relative;
+		align-items: center;
+		padding-top: 26rpx;
 	}
 
-	.week-dot-wrap {
+	.flag-today {
+		position: absolute;
+		top: 0;
+		font-size: 16rpx;
+		letter-spacing: 1rpx;
+		color: var(--color-primary);
+		background-color: var(--color-paper);
+		padding-left: 4rpx;
+		padding-right: 4rpx;
+		transform: rotate(-4deg);
+	}
+
+	.flag-body {
+		flex-direction: row;
+		align-items: flex-start;
+		height: 60rpx;
+	}
+
+	.flag-pole {
+		width: 3rpx;
+		height: 58rpx;
+		background-color: var(--color-line);
+		border-radius: 2rpx;
+	}
+
+	.flag-cloth {
+		width: 40rpx;
+		height: 28rpx;
+		margin-left: -1rpx;
+		border: 3rpx solid var(--color-line);
+		border-radius: 0 6rpx 6rpx 0;
+		background-color: var(--color-paper-2);
+		align-items: center;
+		justify-content: center;
+	}
+
+	.flag-cloth-done {
+		background-color: var(--color-primary);
+	}
+
+	.flag-check {
+		font-size: 20rpx;
+		font-weight: bold;
+		color: var(--color-paper-2);
+	}
+
+	.flag-label {
+		margin-top: 4rpx;
+		font-size: 20rpx;
+		letter-spacing: 1rpx;
+		color: var(--color-muted);
+	}
+
+	.flag-label-today {
+		color: var(--color-primary);
+		font-weight: bold;
+	}
+
+	.chest {
+		width: 58rpx;
+		height: 46rpx;
+		margin-left: 8rpx;
+		margin-bottom: 30rpx;
+		position: relative;
+	}
+
+	.chest-lid {
+		width: 58rpx;
+		height: 16rpx;
+		border: 3rpx solid var(--color-line);
+		border-radius: 6rpx 6rpx 0 0;
+		background-color: var(--color-coin);
+	}
+
+	.chest-body {
+		width: 58rpx;
+		height: 26rpx;
+		border: 3rpx solid var(--color-line);
+		border-top: 0;
+		background-color: var(--color-coin-soft);
+	}
+
+	.chest-lock {
+		position: absolute;
+		left: 24rpx;
+		top: 8rpx;
+		width: 10rpx;
+		height: 12rpx;
+		background-color: var(--color-ink);
+		border-radius: 2rpx;
+	}
+
+	.week-foot {
 		flex-direction: row;
 		align-items: center;
-		margin-right: 18rpx;
+		justify-content: space-between;
+		margin-top: 2rpx;
 	}
 
-	.week-dot {
-		font-size: 26rpx;
-		color: var(--color-line-soft);
-	}
-
-	.week-dot-done {
-		color: var(--color-success);
-	}
-
-	.week-dot-label {
-		font-size: 22rpx;
+	.week-foot-text {
+		font-size: 20rpx;
 		color: var(--color-muted);
-		margin-left: 4rpx;
 	}
 
-	.week-caption {
-		width: 100%;
-		font-size: 22rpx;
+	.week-foot-date {
+		font-size: 18rpx;
 		color: var(--color-muted);
-		margin-top: 12rpx;
+		letter-spacing: 1rpx;
 	}
 
 	.week-claim {
-		height: 88rpx;
+		height: 104rpx;
 		flex-direction: row;
 		align-items: center;
 		justify-content: center;
-		background-color: var(--color-coin-soft);
-		border: 3rpx solid var(--color-coin);
+		border: 4rpx solid var(--color-coin);
 		border-radius: 8rpx;
+		background-color: var(--color-coin-soft);
 	}
 
 	.week-claim-text {
 		font-size: 30rpx;
 		font-weight: bold;
-		color: var(--color-coin);
+		color: var(--color-coin-deep);
+	}
+
+	/* ===== ⑤ 页脚便签 ===== */
+	.note-wrap {
+		align-items: center;
+		padding-top: 24rpx;
+		padding-bottom: 4rpx;
+	}
+
+	.page-note {
+		position: relative;
+		width: 390rpx;
+		height: 68rpx;
+		align-items: center;
+		justify-content: center;
+		border: 3rpx solid var(--color-line-soft);
+		background-color: var(--color-paper-2);
+		transform: rotate(-1.8deg);
+	}
+
+	.note-tape {
+		position: absolute;
+		left: 50%;
+		top: -12rpx;
+		width: 120rpx;
+		height: 22rpx;
+		margin-left: -60rpx;
+		background-color: rgba(192, 138, 46, 0.22);
+		border-left: 2rpx solid rgba(58, 52, 44, 0.22);
+		border-right: 2rpx solid rgba(58, 52, 44, 0.22);
+		transform: rotate(1.5deg);
+	}
+
+	.note-text {
+		font-size: 22rpx;
+		letter-spacing: 1rpx;
+		color: var(--color-muted);
 	}
 
 	.home-bottom-space {
-		height: 40rpx;
+		height: 20rpx;
 	}
 
-	/* 弹层内容 */
+	/* ===== 弹层内容 ===== */
 	.gain-line {
 		flex-direction: row;
 		align-items: center;
@@ -842,3 +1222,4 @@
 		color: var(--color-coin);
 	}
 </style>
+

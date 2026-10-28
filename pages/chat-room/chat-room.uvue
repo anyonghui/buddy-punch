@@ -1,6 +1,6 @@
-<template>
+﻿<template>
 	<view class="chat-room buddy-page paper-texture">
-		<scroll-view v-if="found && unlocked" class="message-list" scroll-y :scroll-into-view="scrollTarget">
+		<scroll-view v-if="found && unlocked" class="message-list" scroll-y :show-scrollbar="false" :scroll-into-view="scrollTarget">
 			<view v-if="messages.length == 0" class="msg-empty">
 				<text class="msg-empty-text">还没有聊过，打个招呼吧</text>
 			</view>
@@ -402,8 +402,8 @@
 	}
 
 	.send-btn-disabled {
-		background-color: var(--color-line-soft);
-		border-color: var(--color-disabled);
+		background-color: var(--color-paper-2);
+		border-color: var(--color-line-soft);
 	}
 
 	.send-btn-text {
@@ -413,10 +413,11 @@
 	}
 
 	.send-btn-text-disabled {
-		color: var(--color-disabled);
+		color: var(--color-muted);
 	}
 
 	.empty-btn {
 		width: 300rpx;
 	}
 </style>
+

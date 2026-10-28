@@ -1,14 +1,34 @@
-<template>
+﻿<template>
 	<view class="detail-page buddy-page paper-texture">
-		<scroll-view class="page-scroll" scroll-y>
+		<scroll-view class="page-scroll" scroll-y :show-scrollbar="false">
 			<view v-if="found" class="detail-content">
 				<!-- ① 头图 -->
 				<view class="header-area">
 					<view class="header-pet" @click="onPetTap">
-						<PetSprite :petKey="petKey" :state="displayState" :height="360" :playing="true" />
+						<PetSprite :petKey="petKey" :state="displayState" :height="360" :playing="true" :speed="1.5" :restart="playNonce" />
 					</view>
-					<text class="pet-name">{{ petName }}</text>
+					<text class="pet-name buddy-display">{{ petName }}</text>
 					<text class="pet-state">{{ wilting ? '蔫了' : '开心' }}{{ isActive ? ' · 陪伴中' : '' }}</text>
+				</view>
+
+				<!-- 动作预览：从首页移入，仅做动作查看 -->
+				<view class="action-panel">
+					<view class="action-head">
+						<text class="action-title">动作预览</text>
+						<text class="action-sub">点一下，看看它现在的样子</text>
+					</view>
+					<view class="action-grid">
+						<view v-for="item in leftActions" :key="item.state" class="action-chip" @click="onAction(item.state)">
+							<view class="action-chip-box">
+								<text class="action-chip-text">{{ item.label }}</text>
+							</view>
+						</view>
+						<view v-for="item in rightActions" :key="item.state" class="action-chip" @click="onAction(item.state)">
+							<view class="action-chip-box">
+								<text class="action-chip-text">{{ item.label }}</text>
+							</view>
+						</view>
+					</view>
 				</view>
 
 				<!-- ② 成长进度 -->
@@ -101,6 +121,7 @@
 		refreshStore
 	} from '@/common/store.uts'
 	import { getPetById, feedPet, unlockChat, setActivePet } from '@/common/repository.uts'
+	import { getAnim, PetActionItem, PET_ACTIONS_LEFT, PET_ACTIONS_RIGHT } from '@/common/pet-anim.uts'
 
 	const petId = ref(-1)
 	const found = ref(false)
@@ -111,11 +132,20 @@
 	const isActive = ref(false)
 	const interactState = ref('')
 	const showUnlockModal = ref(false)
+	// 动作预览：按钮触发单次动作，播完自动回 idle
+	const previewState = ref('')
+	const playNonce = ref(0)
+	const leftActions: PetActionItem[] = PET_ACTIONS_LEFT
+	const rightActions: PetActionItem[] = PET_ACTIONS_RIGHT
 
 	let interactTimer = -1
+	let previewTimer = -1
 	let lastTapAt = 0
 
 	const displayState = computed((): string => {
+		if (previewState.value != '') {
+			return previewState.value
+		}
 		if (wilting.value) {
 			return 'failed'
 		}
@@ -178,13 +208,35 @@
 		}
 	}
 
+	function clearPreviewTimer(): void {
+		if (previewTimer != -1) {
+			clearTimeout(previewTimer)
+			previewTimer = -1
+		}
+	}
+
 	function playInteraction(state: string): void {
+		clearPreviewTimer()
+		previewState.value = ''
 		interactState.value = state
 		clearInteractTimer()
 		interactTimer = setTimeout(() => {
 			interactState.value = ''
 			interactTimer = -1
 		}, 1100)
+	}
+
+	// 播放一遍预览动作，时长按图集帧数换算；播完回 idle
+	function onAction(state: string): void {
+		clearPreviewTimer()
+		previewState.value = state
+		playNonce.value = playNonce.value + 1
+		const def = getAnim(state)
+		const duration = Math.round(def.frames * 1000 / def.fps * 1.5) + 120
+		previewTimer = setTimeout(() => {
+			previewState.value = ''
+			previewTimer = -1
+		}, duration)
 	}
 
 	function onPetTap(): void {
@@ -272,11 +324,14 @@
 
 	onHide(() => {
 		clearInteractTimer()
+		clearPreviewTimer()
 		interactState.value = ''
+		previewState.value = ''
 	})
 
 	onUnload(() => {
 		clearInteractTimer()
+		clearPreviewTimer()
 	})
 </script>
 
@@ -311,6 +366,62 @@
 		font-size: 24rpx;
 		color: var(--color-muted);
 		margin-top: 8rpx;
+	}
+
+	.action-panel {
+		margin-top: 22rpx;
+		padding: 20rpx 16rpx 10rpx 16rpx;
+		border: 3rpx solid var(--color-line);
+		border-radius: 8rpx;
+		background-color: var(--color-paper-2);
+	}
+
+	.action-head {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-left: 8rpx;
+		padding-right: 8rpx;
+		margin-bottom: 12rpx;
+	}
+
+	.action-title {
+		font-size: 26rpx;
+		font-weight: bold;
+		color: var(--color-ink);
+	}
+
+	.action-sub {
+		font-size: 20rpx;
+		color: var(--color-muted);
+	}
+
+	.action-grid {
+		flex-direction: row;
+		flex-wrap: wrap;
+	}
+
+	.action-chip {
+		width: 25%;
+		height: 64rpx;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 10rpx;
+	}
+
+	.action-chip-box {
+		width: 86%;
+		height: 54rpx;
+		align-items: center;
+		justify-content: center;
+		border: 2rpx solid var(--color-line-soft);
+		border-radius: 6rpx;
+		background-color: var(--color-paper);
+	}
+
+	.action-chip-text {
+		font-size: 22rpx;
+		color: var(--color-ink);
 	}
 
 	.progress-card {
@@ -380,7 +491,7 @@
 		font-weight: bold;
 		color: var(--color-success);
 		padding: 20rpx;
-		border: 3rpx dashed var(--color-success);
+		border: 3rpx solid var(--color-success);
 		border-radius: 8rpx;
 		background-color: var(--color-success-soft);
 	}
@@ -388,7 +499,7 @@
 	.status-area {
 		margin-top: 28rpx;
 		padding: 20rpx;
-		border-top: 2rpx dashed var(--color-line-soft);
+		border-top: 2rpx solid var(--color-line-soft);
 	}
 
 	.status-label {
@@ -429,3 +540,4 @@
 		margin-right: 8rpx;
 	}
 </style>
+
